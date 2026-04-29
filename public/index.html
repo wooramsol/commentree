@@ -105,6 +105,14 @@
         }
         .dropdown-btn:hover { background: #e4e4e4; }
 
+        .dropdown-arrow {
+            display: inline-block;
+            transition: transform 0.3s ease;
+        }
+        .dropdown-btn.open .dropdown-arrow {
+            transform: rotate(180deg);
+        }
+
         .handles-list-container {
             display: flex;
             flex-direction: column; 
@@ -139,11 +147,14 @@
             .nav-box { width: 100%; min-width: auto; }
         }
 
-        #inputModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 100; justify-content: center; align-items: center; }
+        /* 모달 공통 스타일 */
+        #inputModal, #deleteModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 100; justify-content: center; align-items: center; }
         .modal-content { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center; width: 85%; max-width: 320px; }
-        input[type="text"].modal-input { width: 90%; padding: 12px; margin: 15px 0; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; box-sizing: border-box;} 
+        input[type="text"].modal-input, input[type="password"].modal-input { width: 90%; padding: 12px; margin: 15px 0; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; box-sizing: border-box;} 
         button.modal-btn { padding: 10px 25px; background: #000; color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: bold; font-size: 1rem;}
         button.modal-btn:hover { background: #333; }
+        .delete-btn { background: #d9534f !important; } 
+        .delete-btn:hover { background: #c9302c !important; }
 
         .bubble-text {
             display: flex; justify-content: center; align-items: center; text-align: center;
@@ -160,9 +171,9 @@
                 <input type="text" id="navInput" autocomplete="off">
                 <button id="goBtn" onclick="navigateToHandle()">→</button>
             </div>
-            <p class="instruction-text">Click a node to add a comment.</p>
+            <p class="instruction-text">Click any nodes to add comments.</p>
             <button id="dropdownToggle" class="dropdown-btn" onclick="toggleDropdown()">
-                Visit other commentrees <span>▾</span>
+                Visit other commentrees <span class="dropdown-arrow">▾</span>
             </button>
             <div id="allHandlesList" class="handles-list-container hidden">Loading...</div>
         </div>
@@ -180,11 +191,21 @@
         </div>
     </div>
 
+    <div id="deleteModal">
+        <div class="modal-content">
+            <h3 style="margin-bottom: 5px;">Delete Node?</h3>
+            <p style="font-size: 0.85rem; color: #777; margin-top: 0;">Child nodes will also be deleted.</p>
+            <input type="password" id="deletePasswordInput" class="modal-input" placeholder="Enter password">
+            <br>
+            <button class="modal-btn" onclick="closeDeleteModal()" style="background:#999; margin-right: 5px;">Cancel</button>
+            <button class="modal-btn delete-btn" onclick="submitDelete()">Delete</button>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
         import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-        // Firebase Setup
         const firebaseConfig = {
             apiKey: "AIzaSyD03P2MQJUUwTpkc2B6EGTrttPtb0JKbxU",
             authDomain: "commentree-87c10.firebaseapp.com",
@@ -197,13 +218,21 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // URL Parsing & Handle Setup
+        const igRegex = /^(?!.*\.\.)(?!^\.)(?!.*\.$)[a-zA-Z0-9._]{1,30}$/;
+
         let handle = window.location.pathname.replace("/", "").toLowerCase(); 
         if (!handle) {
             handle = "@wooramsol"; 
             window.history.replaceState(null, "", "/" + handle);
         }
         handle = decodeURIComponent(handle);
+
+        let cleanHandleForCheck = handle.replace('@', '');
+        if (cleanHandleForCheck && !igRegex.test(cleanHandleForCheck)) {
+            alert("Invalid handle. Instagram handles can only contain letters, numbers, periods, and underscores (Max 30 chars).");
+            handle = "@wooramsol";
+            window.history.replaceState(null, "", "/" + handle);
+        }
         if (!handle.startsWith("@")) handle = "@" + handle;
 
         const navInput = document.getElementById("navInput");
@@ -212,6 +241,13 @@
         window.navigateToHandle = function() {
             let val = navInput.value.trim();
             if(!val) return; 
+            
+            let cleanVal = val.replace('@', '');
+            if (!igRegex.test(cleanVal)) {
+                alert("Invalid handle. Instagram handles can only contain letters, numbers, periods, and underscores (Max 30 chars).");
+                return;
+            }
+
             if(!val.startsWith('@')) val = '@' + val;
             window.location.href = "/" + val.toLowerCase();
         }
@@ -219,12 +255,11 @@
 
         window.toggleDropdown = function() {
             const list = document.getElementById("allHandlesList");
-            const btnSpan = document.querySelector("#dropdownToggle span");
+            const btn = document.getElementById("dropdownToggle");
             const isHidden = list.classList.toggle("hidden");
-            btnSpan.innerText = isHidden ? "▾" : "▴";
+            btn.classList.toggle("open", !isHidden);
         }
 
-        // Fetch Trees List
         async function fetchAllHandles() {
             try {
                 const querySnapshot = await getDocs(collection(db, "trees"));
@@ -261,15 +296,14 @@
         }
         fetchAllHandles();
 
-        // Global state
         window.dataset = { nodes: [], links: [] };
         let selectedNode = null;
+        let nodeToDelete = null; 
         let width = window.innerWidth;
         let height = window.innerHeight;
 
         const docRef = doc(db, "trees", handle); 
 
-        // Snapshot Listener
         onSnapshot(docRef, (docSnap) => {
             if (docSnap.exists()) {
                 const data = docSnap.data();
@@ -285,7 +319,7 @@
                 window.dataset = { nodes, links: data.links.map(d => ({...d})) };
             } else {
                 const initialData = {
-                    nodes: [{ id: "root", label: `What do you think of ${handle}?`, color: "#ffffff", radius: 70, x: width / 2, y: height / 2, phase: Math.random() * Math.PI * 2 }],
+                    nodes: [{ id: "root", label: `What do you think of ${handle}?`, color: "#ffffff", radius: 80, x: width / 2, y: height / 2, phase: Math.random() * Math.PI * 2 }],
                     links: []
                 };
                 setDoc(docRef, initialData); 
@@ -294,7 +328,6 @@
             restartSimulation(); 
         });
 
-        // D3 Initialization
         const svg = d3.select("#chart").append("svg").attr("width", width).attr("height", height);
         const zoom = d3.zoom().on("zoom", event => g.attr("transform", event.transform));
         svg.call(zoom).on("dblclick.zoom", null); 
@@ -320,11 +353,11 @@
             simulation.nodes(window.dataset.nodes);
             simulation.force("link").links(window.dataset.links);
             update();
-            simulation.alpha(1).restart();
+            
+            simulation.alpha(1).alphaTarget(0.05).restart();
             setTimeout(zoomToFit, 300);
         }
 
-        // 💡 줌 & 카메라 이동 버그 완벽 수정
         function zoomToFit() {
             const nodes = window.dataset.nodes;
             if (!nodes || nodes.length === 0) return;
@@ -341,12 +374,9 @@
             const contentH = maxY - minY;
             if (contentW === 0 || contentH === 0) return;
 
-            // 너무 거대하게 확대되는 현상 방지 (최대 1배율까지만 확대)
             let scale = 0.85 / Math.max(contentW / width, contentH / height);
             if (scale > 1) scale = 1; 
 
-            // forceCenter 때문에 노드들이 이미 화면 중앙으로 알아서 모이고 있으므로, 
-            // 카메라도 노드들의 옛날 좌표(midX, midY)를 쫓아갈 필요 없이 화면 중앙을 기준으로 스케일만 맞춰주면 됩니다!
             svg.transition().duration(1200).call(
                 zoom.transform, 
                 d3.zoomIdentity
@@ -362,6 +392,8 @@
             simulation.force("center", d3.forceCenter(width / 2, height / 2));
             simulation.alpha(0.3).restart();
         });
+
+        let isTimerRunning = false;
 
         function update() {
             const link = linkLayer.selectAll(".link")
@@ -381,7 +413,22 @@
                             .attr("stroke-width", 2) 
                             .style("cursor", "pointer")
                             .style("filter", "drop-shadow(0px 3px 3px rgba(0,0,0,0.1))")
-                            .on("click", (event, d) => { event.stopPropagation(); openModal(d); });
+                            .on("click", (event, d) => { 
+                                event.stopPropagation(); 
+                                openModal(d); 
+                            })
+                            .on("contextmenu", (event, d) => {
+                                if (event.pointerType === "touch" || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                                    return; 
+                                }
+                                event.preventDefault(); 
+                                event.stopPropagation();
+                                if (d.id === "root") {
+                                    alert("Root node cannot be deleted.");
+                                    return;
+                                }
+                                openDeleteModal(d);
+                            });
                             
                         g.append("foreignObject")
                             .style("pointer-events", "none") 
@@ -412,31 +459,45 @@
                 .html(d => {
                     if (d.id === "root") {
                         const cleanH = handle.replace("@", "");
+                        const scalingFactor = handle.length > 15 ? 15 / handle.length : 1;
+                        const dynamicFontSize = (0.95 * scalingFactor) + "em";
+
                         return `
-                            <div style="line-height: 1.4; font-size: 0.9em; text-align: center;">
-                                What do you think of<br>
+                            <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; height: 100%; text-align: center; padding: 0 10px; box-sizing: border-box;">
+                                <span style="font-size: 0.85em; margin-bottom: 2px;">What do you think of</span>
                                 <a href="https://www.instagram.com/${cleanH}/" target="_blank" 
-                                   style="color: #0000EE; text-decoration: underline; pointer-events: auto; word-break: break-all;"
+                                   style="color: #0000EE; text-decoration: underline; pointer-events: auto; word-break: break-all; font-size: ${dynamicFontSize}; line-height: 1.15; max-width: 95%;"
                                    onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="event.stopPropagation()">
                                     ${handle}
-                                </a>?
+                                </a>
+                                <span style="font-size: 0.85em; margin-top: 2px;">?</span>
                             </div>
                         `;
                     }
                     return d.label;
                 });
 
-            simulation.on("tick", () => {
-                const time = Date.now() / 1000; 
-                node.attr("transform", d => {
-                    if(!d.x) d.x = width/2; if(!d.y) d.y = height/2;
-                    d.displayY = d.y + (Math.sin(time * 2 + (d.phase||0)) * 3); 
-                    return `translate(${d.x}, ${d.displayY})`;
+            simulation.on("tick", () => {});
+
+            if (!isTimerRunning) {
+                isTimerRunning = true;
+                d3.timer(() => {
+                    const time = Date.now() / 1000;
+                    
+                    nodeLayer.selectAll(".node").attr("transform", d => {
+                        if(!d.x) d.x = width/2; if(!d.y) d.y = height/2;
+                        d.displayX = d.x + (Math.cos(time * 2.5 + (d.phase||0)) * 5);
+                        d.displayY = d.y + (Math.sin(time * 3.0 + (d.phase||0)) * 8); 
+                        return `translate(${d.displayX}, ${d.displayY})`;
+                    });
+                    
+                    linkLayer.selectAll(".link")
+                        .attr("x1", d => d.source.displayX || d.source.x)
+                        .attr("y1", d => d.source.displayY || d.source.y) 
+                        .attr("x2", d => d.target.displayX || d.target.x)
+                        .attr("y2", d => d.target.displayY || d.target.y);
                 });
-                link
-                    .attr("x1", d => d.source.x).attr("y1", d => d.source.displayY || d.source.y) 
-                    .attr("x2", d => d.target.x).attr("y2", d => d.target.displayY || d.target.y);
-            });
+            }
         }
 
         window.openModal = function(node) {
@@ -473,14 +534,74 @@
             await updateDoc(docRef, { nodes: saveNodes, links: saveLinks });
         }
 
+        window.openDeleteModal = function(node) {
+            nodeToDelete = node;
+            document.getElementById("deleteModal").style.display = "flex";
+            document.getElementById("deletePasswordInput").focus();
+        }
+
+        window.closeDeleteModal = function() {
+            document.getElementById("deleteModal").style.display = "none";
+            document.getElementById("deletePasswordInput").value = "";
+            nodeToDelete = null;
+        }
+
+        window.submitDelete = async function() {
+            const pw = document.getElementById("deletePasswordInput").value;
+            if (pw !== "921102") {
+                alert("Incorrect password.");
+                return;
+            }
+
+            if (!nodeToDelete) return;
+
+            const nodesToRemove = new Set([nodeToDelete.id]);
+            let added;
+            do {
+                added = false;
+                window.dataset.links.forEach(l => {
+                    const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
+                    const targetId = typeof l.target === 'object' ? l.target.id : l.target;
+                    
+                    if (nodesToRemove.has(sourceId) && !nodesToRemove.has(targetId)) {
+                        nodesToRemove.add(targetId);
+                        added = true;
+                    }
+                });
+            } while(added);
+
+            window.dataset.nodes = window.dataset.nodes.filter(n => !nodesToRemove.has(n.id));
+            window.dataset.links = window.dataset.links.filter(l => {
+                const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
+                const targetId = typeof l.target === 'object' ? l.target.id : l.target;
+                return !nodesToRemove.has(sourceId) && !nodesToRemove.has(targetId);
+            });
+
+            window.closeDeleteModal();
+
+            const saveNodes = window.dataset.nodes.map(n => ({ id: n.id, label: n.label, color: n.color, radius: n.radius, x: n.x, y: n.y, phase: n.phase }));
+            const saveLinks = window.dataset.links.map(l => ({ source: l.source.id || l.source, target: l.target.id || l.target }));
+
+            await updateDoc(docRef, { nodes: saveNodes, links: saveLinks });
+        }
+
         function drag(simulation) {
-            function dragstarted(event, d) { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }
-            function dragged(event, d) { d.fx = event.x; d.fy = event.y; }
-            function dragended(event, d) { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }
+            function dragstarted(event, d) { 
+                if (!event.active) simulation.alphaTarget(0.3).restart(); 
+                d.fx = d.x; d.fy = d.y; 
+            }
+            function dragged(event, d) { 
+                d.fx = event.x; d.fy = event.y; 
+            }
+            function dragended(event, d) { 
+                if (!event.active) simulation.alphaTarget(0.05); 
+                d.fx = null; d.fy = null; 
+            }
             return d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended);
         }
 
         document.getElementById("commentInput").addEventListener("keyup", e => { if (e.key === "Enter") window.submitComment(); });
+        document.getElementById("deletePasswordInput").addEventListener("keyup", e => { if (e.key === "Enter") window.submitDelete(); });
     </script>
 </body>
 </html>
