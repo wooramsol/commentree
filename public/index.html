@@ -81,7 +81,7 @@
 
         .nav-box {
             background: rgba(255, 255, 255, 0.85); 
-            padding: 4px 12px 2px 12px; 
+            padding: 4px 12px 6px 12px; 
             border-radius: 12px; 
             backdrop-filter: blur(5px);
             box-shadow: 0 4px 15px rgba(0,0,0,0.08);
@@ -148,64 +148,52 @@
 
         .nav-divider {
             height: 1px;
-            background-color: #eee;
-            margin: 2px 0; 
+            background-color: #ddd;
+            margin: 6px 0; 
             width: 100%;
         }
 
-        .recommend-section-inline {
+        /* --- 생성된 전체 트리 목록 스타일 --- */
+        .recommend-section {
             display: flex;
-            align-items: center;
-            font-size: 0.85rem;
-            color: #888;
+            flex-direction: column;
             width: 100%;
-            gap: 6px; 
-            padding: 2px 0; 
+            gap: 6px;
         }
 
         .recommend-label {
-             font-weight: bold;
-             white-space: nowrap; 
+            font-size: 0.85rem;
+            color: #666;
+            font-weight: bold;
         }
 
-        .recommend-handle-container {
-            flex-grow: 1; 
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis; 
-            min-width: 0; 
+        .handles-list-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            max-height: 100px; /* 공간을 너무 차지하지 않게 스크롤 적용 */
+            overflow-y: auto;
+            padding-right: 4px; /* 스크롤바 여백 */
         }
+        
+        /* 스크롤바 디자인 */
+        .handles-list-container::-webkit-scrollbar { width: 4px; }
+        .handles-list-container::-webkit-scrollbar-thumb { background-color: #ccc; border-radius: 4px; }
 
-        .recommend-handle-container a {
+        .handles-list-container a {
+            background: rgba(0, 149, 246, 0.1);
+            color: #0095f6;
             text-decoration: none;
-            color: #555;
-            transition: color 0.2s;
-            display: block; 
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .recommend-handle-container a:hover {
-            color: #0095f6;
-            text-decoration: underline;
-        }
-        .handle-highlight {
-            color: #0095f6;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
             font-weight: 500;
+            transition: background 0.2s, color 0.2s;
         }
-
-        .refresh-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 0.9rem;
-            color: #0095f6;
-            padding: 0;
-            line-height: 1;
-            flex-shrink: 0; 
+        .handles-list-container a:hover {
+            background: #0095f6;
+            color: white;
         }
-        .refresh-btn:hover { transform: rotate(90deg); transition: transform 0.3s; }
-
 
         @media (max-width: 600px) {
             header { 
@@ -218,18 +206,10 @@
             }
             h1 { font-size: 1.4rem; }
             
-            .nav-container {
-                align-items: center;
-            }
-            
-            .nav-label {
-                padding-left: 0;
-            }
-
-            .nav-box {
-                min-width: auto;
-                width: 98%; 
-            }
+            .nav-container { align-items: center; }
+            .nav-label { padding-left: 0; }
+            .nav-box { min-width: auto; width: 98%; }
+            .handles-list-container { justify-content: center; }
         }
 
         #inputModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 100; justify-content: center; align-items: center; }
@@ -267,12 +247,11 @@
 
                 <div class="nav-divider"></div>
 
-                <div class="recommend-section-inline">
-                    <span class="recommend-label">Random visit:</span>
-                    <div id="recommendListInline" class="recommend-handle-container">
+                <div class="recommend-section">
+                    <span class="recommend-label">Explore existing trees:</span>
+                    <div id="allHandlesList" class="handles-list-container">
                         Loading...
                     </div>
-                    <button class="refresh-btn inline-refresh" onclick="refreshList()" title="Refresh">↻</button>
                 </div>
             </div>
         </div>
@@ -334,42 +313,40 @@
             if (event.key === "Enter") window.navigateToHandle();
         });
 
-        // --- 추천 리스트 로직 ---
-        let allHandles = [];
-
+        // --- 전체 목록 불러오기 로직 ---
         async function fetchAllHandles() {
             try {
                 const querySnapshot = await getDocs(collection(db, "trees"));
-                allHandles = [];
+                let allHandles = [];
                 querySnapshot.forEach((doc) => {
+                    // 현재 보고 있는 계정은 목록에서 제외하려면: if (doc.id !== handle) 추가
                     if (doc.id !== handle) {
                         allHandles.push(doc.id);
                     }
                 });
-                window.refreshList();
+
+                const listEl = document.getElementById("allHandlesList");
+                listEl.innerHTML = "";
+
+                if (allHandles.length === 0) {
+                    listEl.innerHTML = "<span style='font-size: 0.8rem; color:#999;'>No other trees yet.</span>";
+                    return;
+                }
+
+                // 알파벳 순으로 정렬
+                allHandles.sort();
+
+                allHandles.forEach((h) => {
+                    let displayHandle = h.startsWith('@') ? h : '@' + h;
+                    const aTag = document.createElement('a');
+                    aTag.href = "/" + h;
+                    aTag.innerText = displayHandle;
+                    listEl.appendChild(aTag);
+                });
             } catch (e) {
                 console.error("Error fetching handles:", e);
-                document.getElementById("recommendListInline").innerHTML = "No data";
+                document.getElementById("allHandlesList").innerHTML = "Failed to load trees.";
             }
-        }
-
-        window.refreshList = function() {
-            const listEl = document.getElementById("recommendListInline");
-            listEl.innerHTML = "";
-
-            if (allHandles.length === 0) {
-                listEl.innerHTML = "No others yet";
-                return;
-            }
-
-            const shuffled = [...allHandles].sort(() => 0.5 - Math.random());
-            const selected = shuffled.slice(0, 1); 
-
-            selected.forEach((h) => {
-                let displayHandle = h.startsWith('@') ? h : '@' + h;
-                const linkHTML = `<a href="/${h}" title="commentree.net/${displayHandle}">commentree.net/<span class="handle-highlight">${displayHandle}</span></a>`;
-                listEl.innerHTML = linkHTML;
-            });
         }
 
         fetchAllHandles();
