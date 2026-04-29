@@ -241,7 +241,13 @@
                     return;
                 }
 
-                allHandles.sort().forEach(h => {
+                allHandles.sort((a, b) => {
+                    const cleanA = a.replace('@', '').toLowerCase();
+                    const cleanB = b.replace('@', '').toLowerCase();
+                    return cleanA.localeCompare(cleanB);
+                });
+
+                allHandles.forEach(h => {
                     let displayHandle = h.startsWith('@') ? h : '@' + h;
                     const aTag = document.createElement('a');
                     aTag.href = "/" + h;
@@ -318,6 +324,7 @@
             setTimeout(zoomToFit, 300);
         }
 
+        // 💡 줌 & 카메라 이동 버그 완벽 수정
         function zoomToFit() {
             const nodes = window.dataset.nodes;
             if (!nodes || nodes.length === 0) return;
@@ -332,12 +339,20 @@
 
             const contentW = maxX - minX;
             const contentH = maxY - minY;
-            const midX = (minX + maxX) / 2;
-            const midY = (minY + maxY) / 2;
             if (contentW === 0 || contentH === 0) return;
 
-            const scale = 0.85 / Math.max(contentW / width, contentH / height);
-            svg.transition().duration(1200).call(zoom.transform, d3.zoomIdentity.translate(width / 2 - scale * midX, height / 2 - scale * midY).scale(scale));
+            // 너무 거대하게 확대되는 현상 방지 (최대 1배율까지만 확대)
+            let scale = 0.85 / Math.max(contentW / width, contentH / height);
+            if (scale > 1) scale = 1; 
+
+            // forceCenter 때문에 노드들이 이미 화면 중앙으로 알아서 모이고 있으므로, 
+            // 카메라도 노드들의 옛날 좌표(midX, midY)를 쫓아갈 필요 없이 화면 중앙을 기준으로 스케일만 맞춰주면 됩니다!
+            svg.transition().duration(1200).call(
+                zoom.transform, 
+                d3.zoomIdentity
+                    .translate(width / 2 * (1 - scale), height / 2 * (1 - scale))
+                    .scale(scale)
+            );
         }
 
         window.addEventListener('resize', () => {
@@ -348,26 +363,22 @@
             simulation.alpha(0.3).restart();
         });
 
-        // 💡 D3 렌더링 최적화: remove/append 반복을 버리고 join()과 select()로 재사용 업데이트
         function update() {
-            // Links Update
             const link = linkLayer.selectAll(".link")
                 .data(window.dataset.links, d => (d.source.id || d.source) + "-" + (d.target.id || d.target))
                 .join("line")
                 .attr("class", "link")
-                .attr("stroke", "#000000") // 선 색상 검정색
+                .attr("stroke", "#000000") 
                 .attr("stroke-width", 2);
 
-            // Nodes Update (Enter, Update, Exit)
             const node = nodeLayer.selectAll(".node")
                 .data(window.dataset.nodes, d => d.id)
                 .join(
                     enter => {
                         const g = enter.append("g").attr("class", "node").call(drag(simulation));
-                        // 초기 생성 시에만 태그를 붙임 (성능 향상)
                         g.append("circle")
                             .attr("stroke", "#000")
-                            .attr("stroke-width", 2) // 루트 노드도 모두 2px로 통일
+                            .attr("stroke-width", 2) 
                             .style("cursor", "pointer")
                             .style("filter", "drop-shadow(0px 3px 3px rgba(0,0,0,0.1))")
                             .on("click", (event, d) => { event.stopPropagation(); openModal(d); });
@@ -380,7 +391,6 @@
                     }
                 );
 
-            // 속성 업데이트 (새 노드 + 기존 노드 모두 적용)
             node.select("circle")
                 .attr("r", d => d.radius)
                 .attr("fill", d => d.id === "root" ? "#ffffff" : d.color);
@@ -400,7 +410,6 @@
                     return Math.max(10, d.radius / divider) + "px";
                 })
                 .html(d => {
-                    // 무조건 ID 기반 하이퍼링크 변환
                     if (d.id === "root") {
                         const cleanH = handle.replace("@", "");
                         return `
@@ -417,7 +426,6 @@
                     return d.label;
                 });
 
-            // 시뮬레이션 틱
             simulation.on("tick", () => {
                 const time = Date.now() / 1000; 
                 node.attr("transform", d => {
