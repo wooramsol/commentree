@@ -2,16 +2,21 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>commentree</title>
     
     <link rel="preconnect" href="https://d3js.org">
     <link rel="preconnect" href="https://www.gstatic.com">
-    
     <script src="https://d3js.org/d3.v7.min.js" defer></script>
     
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #f9f9f9; font-family: 'Helvetica Neue', Arial, sans-serif; }
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; 
+            background-color: #f9f9f9; font-family: 'Helvetica Neue', Arial, sans-serif;
+            -webkit-user-select: none; user-select: none;
+            -webkit-touch-callout: none; touch-action: none;
+            overscroll-behavior: none;
+        }
         
         header { position: absolute; top: 15px; left: 15px; z-index: 10; pointer-events: none; display: flex; flex-direction: column; align-items: flex-start; max-width: 96%; }
         
@@ -20,106 +25,46 @@
         .input-wrapper { display: flex; align-items: center; width: 100%; justify-content: space-between; position: relative; }
         .domain-text { font-weight: 800; color: #000; font-size: 1.05rem; letter-spacing: -0.5px; white-space: nowrap; }
         
-        #navInput { border: none; border-bottom: 2px solid #ddd; background: transparent; font-size: 1.05rem; font-weight: bold; font-family: 'Helvetica Neue', Arial, sans-serif; color: #000; width: 100%; padding: 0 4px; margin: 0 6px 0 2px; outline: none; transition: border-color 0.3s; flex-grow: 1; }
+        #navInput { border: none; border-bottom: 2px solid #ddd; background: transparent; font-size: 1.05rem; font-weight: bold; font-family: 'Helvetica Neue', Arial, sans-serif; color: #000; width: 100%; padding: 0 4px; margin: 0 6px 0 2px; outline: none; transition: border-color 0.3s; flex-grow: 1; -webkit-user-select: text; user-select: text; }
         #navInput::placeholder { color: #999; font-weight: 500; }
         #navInput:focus { border-bottom: 2px solid #0095f6; }
         
-        #goBtn { 
-            display: none; 
-            background: #0095f6; 
-            border: none; 
-            font-size: 0.85rem; 
-            font-weight: bold; 
-            color: #fff; 
-            padding: 6px 12px; 
-            border-radius: 20px; 
-            cursor: pointer; 
-            transition: background 0.2s, transform 0.1s; 
-            flex-shrink: 0; 
-        }
+        #goBtn { display: none; background: #0095f6; border: none; font-size: 0.85rem; font-weight: bold; color: #fff; padding: 6px 12px; border-radius: 20px; cursor: pointer; transition: background 0.2s, transform 0.1s; flex-shrink: 0; }
         #goBtn:hover { background: #0077c5; transform: scale(1.05); }
-        #goBtn:active { transform: scale(0.95); }
 
         .instruction-text { font-size: 0.85rem; color: #666; margin: 0; padding-left: 2px; }
         
-        .autocomplete-container {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            width: 100%;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-            max-height: 180px;
-            overflow-y: auto;
-            z-index: 20;
-            display: none;
-            flex-direction: column;
-            margin-top: 8px;
-            padding: 4px;
-            box-sizing: border-box;
-        }
-        .autocomplete-container::-webkit-scrollbar { width: 4px; }
-        .autocomplete-container::-webkit-scrollbar-thumb { background-color: #ccc; border-radius: 4px; }
-        .autocomplete-item {
-            padding: 8px 12px;
-            cursor: pointer;
-            font-size: 0.95rem;
-            font-weight: 500;
-            color: #333;
-            border-radius: 6px;
-            transition: background 0.2s, color 0.2s;
-            word-break: break-all;
-        }
+        .autocomplete-container { position: absolute; top: 100%; left: 0; width: 100%; background: white; border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,0.15); max-height: 180px; overflow-y: auto; z-index: 20; display: none; flex-direction: column; margin-top: 8px; padding: 4px; box-sizing: border-box; }
+        .autocomplete-item { padding: 8px 12px; cursor: pointer; font-size: 0.95rem; font-weight: 500; color: #333; border-radius: 6px; transition: background 0.2s; word-break: break-all; }
         .autocomplete-item:hover { background: #0095f6; color: white; }
-
-        .dropdown-btn { background: #f0f0f0; border: none; border-radius: 6px; padding: 6px 10px; font-size: 0.85rem; font-weight: bold; color: #444; cursor: pointer; text-align: left; transition: background 0.2s; display: flex; justify-content: space-between; align-items: center; }
-        .dropdown-btn:hover { background: #e4e4e4; }
+        .match-highlight { color: #0095f6; font-weight: 900; }
         
+        .dropdown-btn { background: #f0f0f0; border: none; border-radius: 6px; padding: 6px 10px; font-size: 0.85rem; font-weight: bold; color: #444; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; }
         .dropdown-arrow { display: inline-block; transition: transform 0.3s ease; }
         .dropdown-btn.open .dropdown-arrow { transform: rotate(180deg); }
         
         .handles-list-container { display: flex; flex-direction: column; gap: 4px; max-height: 150px; overflow-y: auto; padding-right: 4px; margin-top: 2px; }
         .hidden { display: none !important; }
-        .handles-list-container::-webkit-scrollbar { width: 4px; }
-        .handles-list-container::-webkit-scrollbar-thumb { background-color: #ccc; border-radius: 4px; }
-        .handles-list-container a { background: rgba(0, 149, 246, 0.05); color: #333; text-decoration: none; padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; transition: background 0.2s, color 0.2s; display: block; word-break: break-all; }
+        .handles-list-container a { background: rgba(0, 149, 246, 0.05); color: #333; text-decoration: none; padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; display: block; word-break: break-all; }
         .handles-list-container a:hover { background: #0095f6; color: white; }
-        
-        .match-highlight { color: #0095f6; font-weight: 900; }
-        .autocomplete-item:hover .match-highlight { color: white; }
-        
-        .active-item {
-            background-color: #e6f3ff !important;
-            color: #0095f6 !important;
-            border-left: 4px solid #0095f6 !important;
-            font-weight: 800 !important;
-        }
-        .active-item:hover {
-            background-color: #0095f6 !important;
-            color: white !important;
-        }
-        .active-item .match-highlight { color: #0077c5; }
-        .active-item:hover .match-highlight { color: white; }
+        .active-item { background-color: #e6f3ff !important; color: #0095f6 !important; border-left: 4px solid #0095f6 !important; font-weight: 800 !important; }
 
+        #inputModal, #deleteModal, #deleteTreeModal, #adminModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 100; justify-content: center; align-items: center; pointer-events: auto; }
+        .modal-content { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center; width: 85%; max-width: 320px; pointer-events: auto; }
+        input.modal-input { width: 90%; padding: 12px; margin: 15px 0; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; box-sizing: border-box; -webkit-user-select: text; user-select: text;} 
+        button.modal-btn { padding: 10px 25px; background: #000; color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: bold; font-size: 1rem; margin-top: 5px;}
+        .delete-btn { background: #d9534f !important; }
+        
+        .bubble-text { display: flex; justify-content: center; align-items: center; text-align: center; width: 100%; height: 100%; white-space: normal; word-wrap: break-word; word-break: break-word; line-height: 1.2; overflow: hidden; padding: 2px; box-sizing: border-box; pointer-events: none; }
+
+        .zoom-controls { position: fixed; bottom: 25px; right: 25px; display: flex; flex-direction: column; gap: 8px; z-index: 10; pointer-events: auto; }
+        .zoom-controls button { width: 44px; height: 44px; background: rgba(255, 255, 255, 0.9); border: 1px solid #ddd; border-radius: 10px; backdrop-filter: blur(5px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); font-size: 1.5rem; font-weight: bold; color: #555; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        
         @media (max-width: 600px) {
             header { left: 50%; transform: translateX(-50%); top: 15px; width: 96%; align-items: center; }
-            .nav-box { width: 100%; min-width: auto; }
+            .nav-box { width: 100%; }
+            .zoom-controls { bottom: 15px; right: 15px; }
         }
-        
-        #inputModal, #deleteModal, #deleteTreeModal, #adminModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 100; justify-content: center; align-items: center; }
-        .modal-content { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center; width: 85%; max-width: 320px; }
-        input[type="text"].modal-input, input[type="password"].modal-input, input[type="email"].modal-input { width: 90%; padding: 12px; margin: 15px 0; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; box-sizing: border-box;} 
-        button.modal-btn { padding: 10px 25px; background: #000; color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: bold; font-size: 1rem; margin-top: 5px;}
-        button.modal-btn:hover { background: #333; }
-        .delete-btn { background: #d9534f !important; } 
-        .delete-btn:hover { background: #c9302c !important; }
-        .bubble-text { display: flex; justify-content: center; align-items: center; text-align: center; width: 100%; height: 100%; white-space: normal; word-wrap: break-word; word-break: break-word; line-height: 1.2; overflow: hidden; padding: 2px; box-sizing: border-box; }
-
-        .zoom-controls { position: fixed; bottom: 25px; right: 25px; display: flex; flex-direction: column; gap: 8px; z-index: 10; }
-        .zoom-controls button { width: 44px; height: 44px; background: rgba(255, 255, 255, 0.9); border: 1px solid #ddd; border-radius: 10px; backdrop-filter: blur(5px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); font-size: 1.5rem; font-weight: bold; color: #555; cursor: pointer; outline: none; transition: background 0.2s, color 0.2s, border-color 0.2s; display: flex; align-items: center; justify-content: center; padding: 0; margin: 0; }
-        .zoom-controls button:hover { background: #ffffff; color: #0095f6; border-color: #0095f6; }
-        @media (max-width: 600px) { .zoom-controls { bottom: 15px; right: 15px; } .zoom-controls button { width: 38px; height: 38px; font-size: 1.3rem; } }
     </style>
 </head>
 <body>
@@ -127,66 +72,60 @@
         <div class="nav-box">
             <div class="input-wrapper">
                 <span class="domain-text">commentree.net/</span>
-                <input type="text" id="navInput" autocomplete="off">
+                <input type="text" id="navInput" autocomplete="off" spellcheck="false">
                 <button id="goBtn" onclick="navigateToHandle()">Create</button>
                 <div id="autocompleteList" class="autocomplete-container"></div>
             </div>
             <p class="instruction-text">Click any nodes to add comments.</p>
             <button id="dropdownToggle" class="dropdown-btn" onclick="toggleDropdown()">
-                <span>Visit other commentrees <span id="treeCountDisplay"></span></span>
+                <span>Other commentrees <span id="treeCountDisplay"></span></span>
                 <span class="dropdown-arrow">▾</span>
             </button>
-            <div id="allHandlesList" class="handles-list-container hidden">Loading...</div>
+            <div id="allHandlesList" class="handles-list-container hidden"></div>
         </div>
     </header>
 
     <div id="chart"></div>
-
     <div class="zoom-controls">
         <button id="zoomInBtn" title="Zoom In">+</button>
         <button id="zoomOutBtn" title="Zoom Out">−</button>
     </div>
 
-    <div id="inputModal">
+    <div id="inputModal" onclick="if(event.target===this) closeModal()">
         <div class="modal-content">
-            <h3 style="margin-bottom: 5px;">Leave a comment</h3>
-            <p style="font-size: 0.85rem; color: #d9534f; margin-top: 0; font-weight: 500;">Once posted, it cannot be deleted.</p>
-            <input type="text" id="commentInput" class="modal-input" placeholder="Enter your comment" maxlength="50">
+            <h3>Leave a comment</h3>
+            <p style="font-size:0.8rem; color:#d9534f">Once posted, it cannot be deleted.</p>
+            <input type="text" id="commentInput" class="modal-input" placeholder="Enter comment" maxlength="50">
             <br>
-            <button class="modal-btn" onclick="closeModal()" style="background:#999; margin-right: 5px;">Cancel</button>
             <button class="modal-btn" onclick="submitComment()">Post</button>
         </div>
     </div>
 
-    <div id="deleteModal">
+    <div id="deleteModal" onclick="if(event.target===this) closeDeleteModal()">
         <div class="modal-content">
-            <h3 style="margin-bottom: 5px;">Delete Node?</h3>
-            <p style="font-size: 0.85rem; color: #777; margin-top: 0;">Child nodes will also be deleted.</p>
-            <button class="modal-btn" onclick="closeDeleteModal()" style="background:#999; margin-right: 5px;">Cancel</button>
+            <h3>Delete Node?</h3>
+            <p style="color:#777; font-size:0.85rem">Children will also be deleted.</p>
             <button class="modal-btn delete-btn" onclick="submitDelete()">Delete</button>
         </div>
     </div>
 
-    <div id="deleteTreeModal">
+    <div id="deleteTreeModal" onclick="if(event.target===this) closeDeleteTreeModal()">
         <div class="modal-content">
-            <h3 style="margin-bottom: 5px;">Delete Entire Tree?</h3>
-            <p style="font-size: 0.85rem; color: #777; margin-top: 0;">This will permanently remove <strong id="treeToDeleteName"></strong>.</p>
-            <button class="modal-btn" onclick="closeDeleteTreeModal()" style="background:#999; margin-right: 5px;">Cancel</button>
+            <h3>Delete Entire Tree?</h3>
+            <p id="treeToDeleteName" style="font-weight:bold"></p>
             <button class="modal-btn delete-btn" onclick="submitDeleteTree()">Delete</button>
         </div>
     </div>
 
-    <div id="adminModal">
+    <div id="adminModal" onclick="if(event.target===this) closeAdminModal()">
         <div class="modal-content">
-            <h3 style="margin-bottom: 5px;">Admin Login</h3>
+            <h3>Admin Login</h3>
             <input type="email" id="adminEmail" class="modal-input" placeholder="Admin Email">
             <input type="password" id="adminPassword" class="modal-input" placeholder="Password">
             <br>
-            <button class="modal-btn" onclick="closeAdminModal()" style="background:#999; margin-right: 5px;">Cancel</button>
             <button class="modal-btn" onclick="submitAdminLogin()">Login</button>
-            
-            <div id="adminLogoutDiv" style="display: none; margin-top: 15px;">
-                <button class="modal-btn delete-btn" style="width: 100%;" onclick="submitAdminLogout()">Logout</button>
+            <div id="adminLogoutDiv" style="display:none; margin-top:10px">
+                <button class="modal-btn delete-btn" style="width:100%" onclick="submitAdminLogout()">Logout</button>
             </div>
         </div>
     </div>
@@ -210,105 +149,51 @@
         const auth = getAuth(app);
         
         let isAdmin = false;
-        onAuthStateChanged(auth, (user) => {
-            isAdmin = !!user;
-        });
-
-        window.closeAdminModal = () => {
-            document.getElementById('adminModal').style.display = 'none';
-            document.getElementById('adminPassword').value = '';
-        };
+        onAuthStateChanged(auth, (user) => { isAdmin = !!user; });
 
         window.submitAdminLogin = async () => {
-            const email = document.getElementById('adminEmail').value;
-            const pw = document.getElementById('adminPassword').value;
-            try {
-                await signInWithEmailAndPassword(auth, email, pw);
-                alert("Successfully logged in as Admin.");
-                closeAdminModal();
-            } catch (e) {
-                alert("Login failed. Check your credentials.");
-            }
+            const e = document.getElementById('adminEmail').value;
+            const p = document.getElementById('adminPassword').value;
+            try { await signInWithEmailAndPassword(auth, e, p); alert("Admin mode ON"); closeAdminModal(); } catch(err) { alert("Fail"); }
         };
-
-        window.submitAdminLogout = async () => {
-            await signOut(auth);
-            alert("Logged out securely.");
-            closeAdminModal();
-        };
+        window.submitAdminLogout = async () => { await signOut(auth); alert("Logged out"); closeAdminModal(); };
+        window.closeAdminModal = () => { document.getElementById('adminModal').style.display='none'; };
 
         const igRegex = /^(?!.*\.\.)(?!^\.)(?!.*\.$)[a-zA-Z0-9._]{1,30}$/;
-
         let handle = window.location.pathname.replace(/\//g, "").toLowerCase().trim(); 
-        if (!handle) {
-            handle = "@wooramsol"; 
-            window.history.replaceState(null, "", "/" + handle);
-        }
-        handle = decodeURIComponent(handle);
-
-        let cleanHandleForCheck = handle.replace('@', '');
-        if (cleanHandleForCheck && !igRegex.test(cleanHandleForCheck)) {
-            alert("Invalid handle. Instagram handles can only contain letters, numbers, periods, and underscores (Max 30 chars).");
-            handle = "@wooramsol";
-            window.history.replaceState(null, "", "/" + handle);
-        }
+        if (!handle) handle = "@wooramsol";
         if (!handle.startsWith("@")) handle = "@" + handle;
 
         const navInput = document.getElementById("navInput");
-        navInput.placeholder = handle; 
+        navInput.placeholder = handle;
         navInput.value = "";
-        
+
         window.navigateToHandle = async function() {
             let val = navInput.value.trim().toLowerCase();
-            if(!val) return; 
+            if(!val) return;
+            if(val === 'admin') { document.getElementById('adminModal').style.display='flex'; document.getElementById('adminLogoutDiv').style.display=isAdmin?'block':'none'; return; }
             
-            // 비밀 명령어 admin 감지
-            if (val === 'admin') {
-                document.getElementById('adminModal').style.display = 'flex';
-                document.getElementById('adminLogoutDiv').style.display = isAdmin ? 'block' : 'none';
-                document.getElementById('adminEmail').focus();
-                navInput.value = '';
-                document.getElementById('autocompleteList').style.display = 'none';
-                return;
+            let clean = val.replace('@', '');
+            if(!igRegex.test(clean)) return alert("Invalid Handle");
+            val = '@' + clean;
+
+            const checkRef = doc(db, "trees", val);
+            const snap = await getDoc(checkRef);
+            if(!snap.exists()) {
+                const initialData = {
+                    nodes: [{ id: "root", label: `What do you think of ${val}?`, color: "#ffffff", radius: 80, x: window.innerWidth / 2, y: window.innerHeight / 2, phase: Math.random() * Math.PI * 2 }],
+                    links: []
+                };
+                await setDoc(checkRef, initialData);
+                await setDoc(doc(db, "metadata", "handles"), { list: arrayUnion(val) }, { merge: true });
             }
-
-            let cleanVal = val.replace('@', '');
-            if (!igRegex.test(cleanVal)) {
-                alert("Invalid handle. Instagram handles can only contain letters, numbers, periods, and underscores (Max 30 chars).");
-                return;
-            }
-
-            if(!val.startsWith('@')) val = '@' + cleanVal;
-
-            try {
-                // 데이터베이스 존재 유무 확인 후 Create 처리
-                const checkRef = doc(db, "trees", val);
-                const checkSnap = await getDoc(checkRef);
-
-                if (!checkSnap.exists()) {
-                    const initialData = {
-                        nodes: [{ id: "root", label: `What do you think of ${val}?`, color: "#ffffff", radius: 80, x: window.innerWidth / 2, y: window.innerHeight / 2, phase: Math.random() * Math.PI * 2 }],
-                        links: []
-                    };
-                    await setDoc(checkRef, initialData);
-                    await setDoc(doc(db, "metadata", "handles"), { list: arrayUnion(val) }, { merge: true });
-                }
-                
-                window.location.href = "/" + val;
-            } catch(e) {
-                console.error(e);
-                alert("Network error.");
-            }
-        }
-        
-        navInput.addEventListener("keyup", e => { if (e.key === "Enter") window.navigateToHandle(); });
+            window.location.href = "/" + val;
+        };
 
         let isTreesLoaded = false;
         let cachedHandles = [];
-        let treeToDelete = null; 
         let loadTreesPromise = null;
 
-        // 💡 단일 데이터 소스로 통합된 카운트 로직 (안정성 100%)
         function loadTreesData() {
             if (isTreesLoaded) return Promise.resolve();
             if (loadTreesPromise) return loadTreesPromise;
@@ -318,7 +203,6 @@
                     const metaRef = doc(db, "metadata", "handles");
                     const metaSnap = await getDoc(metaRef);
                     let tempHandles = [];
-                    
                     if (metaSnap.exists() && metaSnap.data().list) {
                         tempHandles = metaSnap.data().list;
                     } else {
@@ -326,19 +210,12 @@
                         querySnapshot.forEach(d => tempHandles.push(d.id));
                         await setDoc(metaRef, { list: tempHandles }, { merge: true });
                     }
-                    
                     tempHandles = [...new Set(tempHandles)];
                     tempHandles.sort((a, b) => a.replace('@', '').toLowerCase().localeCompare(b.replace('@', '').toLowerCase()));
-                    
                     cachedHandles = tempHandles;
                     isTreesLoaded = true;
-                    
                     document.getElementById("treeCountDisplay").innerText = `(${cachedHandles.length})`;
-                } catch (e) {
-                    console.error("Error fetching handles:", e);
-                } finally {
-                    loadTreesPromise = null;
-                }
+                } catch (e) { console.error(e); } finally { loadTreesPromise = null; }
             })();
             return loadTreesPromise;
         }
@@ -348,343 +225,108 @@
             const btn = document.getElementById("dropdownToggle");
             const isHidden = list.classList.toggle("hidden");
             btn.classList.toggle("open", !isHidden);
-
             if (!isHidden) {
-                if (!isTreesLoaded) {
-                    list.innerHTML = "<span style='font-size: 0.8rem; color:#999; padding: 4px;'>Loading trees...</span>";
-                    await loadTreesData();
-                }
-                renderDropdownList();
+                if (!isTreesLoaded) await loadTreesData();
+                list.innerHTML = cachedHandles.map(h => `<a href="/${h}" class="${h.toLowerCase() === handle.toLowerCase() ? 'active-item' : ''}">${h}</a>`).join('');
             }
-        }
-
-        function renderDropdownList() {
-            const listEl = document.getElementById("allHandlesList");
-            listEl.innerHTML = "";
-            if (cachedHandles.length === 0) {
-                listEl.innerHTML = "<span style='font-size: 0.8rem; color:#999; padding: 4px;'>No other trees yet.</span>";
-                return;
-            }
-            cachedHandles.forEach(h => {
-                let displayHandle = h.startsWith('@') ? h : '@' + h;
-                if (displayHandle.toLowerCase() === '@wooramsol') displayHandle += ' 🧑🏻‍💻';
-
-                const aTag = document.createElement('a');
-                aTag.href = "/" + h;
-                aTag.innerText = displayHandle;
-                
-                if (h.toLowerCase().trim() === handle.toLowerCase().trim()) {
-                    aTag.classList.add('active-item');
-                    aTag.title = "Current Tree";
-                }
-                
-                listEl.appendChild(aTag);
-            });
-        }
-
-        const autocompleteList = document.getElementById('autocompleteList');
-
-        navInput.addEventListener('click', () => {
-            if (isTreesLoaded && navInput.value.trim()) showAutocomplete();
-        });
-
-        navInput.addEventListener('focus', async () => {
-            if (!isTreesLoaded) await loadTreesData();
-            if (navInput.value.trim()) showAutocomplete();
-        });
+        };
 
         let debounceTimer;
         navInput.addEventListener('input', () => {
             clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(async () => {
-                if (!isTreesLoaded) await loadTreesData();
-                showAutocomplete();
+            debounceTimer = setTimeout(() => {
+                let v = navInput.value.trim().toLowerCase();
+                if(!v || v==='admin') { document.getElementById('autocompleteList').style.display='none'; return; }
+                const cleanV = v.replace('@', '');
+                const fullV = '@' + cleanV;
+                const exact = cachedHandles.some(h => h.toLowerCase() === fullV);
+                document.getElementById('goBtn').style.display = (!exact && igRegex.test(cleanV)) ? 'block' : 'none';
+                
+                const filtered = cachedHandles.filter(h => h.toLowerCase().includes(cleanV));
+                const list = document.getElementById('autocompleteList');
+                list.innerHTML = filtered.slice(0, 8).map(h => `
+                    <div class="autocomplete-item ${h.toLowerCase() === handle.toLowerCase() ? 'active-item' : ''}" onmousedown="window.location.href='/${h}'">
+                        ${h.replace(new RegExp(cleanV, 'gi'), m => `<span class="match-highlight">${m}</span>`)}
+                    </div>
+                `).join('');
+                list.style.display = filtered.length ? 'flex' : 'none';
             }, 250);
         });
 
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.input-wrapper')) {
-                autocompleteList.style.display = 'none';
-            }
-        });
-
-        function showAutocomplete() {
-            if (!isTreesLoaded) return;
-            
-            let val = navInput.value.trim().replace('@', '').toLowerCase();
-            
-            if (val === 'admin') {
-                autocompleteList.style.display = 'none';
-                return;
-            }
-
-            const goBtn = document.getElementById('goBtn');
-            const exactMatch = cachedHandles.some(h => h.replace('@', '').toLowerCase() === val);
-            const isValid = igRegex.test(val);
-
-            if (val && !exactMatch && isValid) {
-                goBtn.style.display = 'block';
-            } else {
-                goBtn.style.display = 'none';
-            }
-
-            if (!val) {
-                autocompleteList.style.display = 'none';
-                return;
-            }
-
-            const filtered = cachedHandles.filter(h => h.replace('@', '').toLowerCase().includes(val));
-
-            if (filtered.length === 0) {
-                autocompleteList.innerHTML = "<div style='padding: 8px 12px; font-size: 0.85rem; color:#999;'>No matches found</div>";
-                autocompleteList.style.display = 'flex';
-                return;
-            }
-
-            autocompleteList.innerHTML = '';
-            filtered.slice(0, 10).forEach(h => {
-                let displayHandle = h.startsWith('@') ? h : '@' + h;
-                if (displayHandle.toLowerCase() === '@wooramsol') displayHandle += ' 🧑🏻‍💻';
-
-                const div = document.createElement('div');
-                div.className = 'autocomplete-item';
-                
-                if (h.toLowerCase().trim() === handle.toLowerCase().trim()) {
-                    div.classList.add('active-item');
-                }
-                
-                const regex = new RegExp(`(${val})`, 'gi');
-                div.innerHTML = displayHandle.replace(regex, `<span class="match-highlight">$1</span>`);
-                
-                div.onmousedown = (e) => {
-                    if (e.button === 2) return; 
-                    e.preventDefault(); 
-                    navInput.value = h.replace('@', '');
-                    autocompleteList.style.display = 'none';
-                    window.navigateToHandle();
-                };
-
-                autocompleteList.appendChild(div);
-            });
-            autocompleteList.style.display = 'flex';
-        }
-
-        window.openDeleteTreeModal = function(targetHandle) {
-            treeToDelete = targetHandle;
-            document.getElementById("treeToDeleteName").innerText = targetHandle;
-            document.getElementById("deleteTreeModal").style.display = "flex";
-        }
-
-        window.closeDeleteTreeModal = function() {
-            document.getElementById("deleteTreeModal").style.display = "none";
-            treeToDelete = null;
-        }
-
-        window.submitDeleteTree = async function() {
-            if (!isAdmin) {
-                alert("Permission denied. Only admins can delete trees.");
-                return;
-            }
-
-            if (!treeToDelete) return;
-            const target = treeToDelete;
-
-            try {
-                if (target.toLowerCase() === handle.toLowerCase()) {
-                    if (typeof window.unsubTree === 'function') window.unsubTree();
-                }
-
-                await deleteDoc(doc(db, "trees", target));
-                await updateDoc(doc(db, "metadata", "handles"), { list: arrayRemove(target) }).catch(e => console.log(e));
-                
-                cachedHandles = cachedHandles.filter(h => h !== target);
-                
-                window.closeDeleteTreeModal();
-                document.getElementById("treeCountDisplay").innerText = `(${cachedHandles.length})`;
-                
-                if (target.toLowerCase() === handle.toLowerCase()) {
-                    alert("This tree has been deleted.");
-                    window.location.href = "/@wooramsol";
-                } else {
-                    renderDropdownList();
-                    showAutocomplete();
-                }
-            } catch (e) {
-                console.error("Error deleting tree:", e);
-                alert("Failed to delete tree.");
-            }
-        }
-
         window.dataset = { nodes: [], links: [] };
-        let selectedNode = null;
-        let nodeToDelete = null; 
-        let width = window.innerWidth;
-        let height = window.innerHeight;
-
-        const docRef = doc(db, "trees", handle); 
-
-        window.unsubTree = onSnapshot(docRef, (docSnap) => {
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                const nodes = data.nodes.map((d, index) => {
-                    let node = {...d};
-                    if (node.id === "root") {
-                        node.color = "#ffffff"; 
-                        node.label = `What do you think of ${handle}?`;
-                    }
-                    return node;
-                });
-                window.dataset = { nodes, links: data.links.map(d => ({...d})) };
+        const docRef = doc(db, "trees", handle);
+        window.unsubTree = onSnapshot(docRef, snap => {
+            if(snap.exists()) {
+                const d = snap.data();
+                window.dataset.nodes = d.nodes.map(n => ({...n, label: n.id==='root'?`What do you think of ${handle}?`:n.label}));
+                window.dataset.links = d.links;
             } else {
                 window.dataset = {
-                    nodes: [{ id: "root", label: `"${handle}" is not created yet.\nType in search bar and click Create!`, color: "#ffffff", radius: 80, x: width / 2, y: height / 2, phase: 0 }],
+                    nodes: [{ id: "root", label: `"${handle}" is not created yet.\nType in search bar and click Create!`, color: "#ffffff", radius: 80, x: window.innerWidth / 2, y: window.innerHeight / 2, phase: 0 }],
                     links: []
                 };
             }
-            restartSimulation(); 
+            restartSimulation();
         });
 
-        let svg, g, linkLayer, nodeLayer, simulation, zoom;
-        
-        // 페이지 진입 즉시 데이터 로딩 (카운트 연동)
-        loadTreesData();
+        // 초기 사이즈 강제 설정 (공 뭉침 방지)
+        let initialWidth = window.innerWidth;
+        let initialHeight = window.innerHeight;
 
-        svg = d3.select("#chart").append("svg").attr("width", width).attr("height", height);
-        zoom = d3.zoom().on("zoom", event => g.attr("transform", event.transform));
-        svg.call(zoom).on("dblclick.zoom", null); 
+        const svg = d3.select("#chart").append("svg").attr("width", initialWidth).attr("height", initialHeight);
+        const g = svg.append("g");
+        const zoom = d3.zoom().on("zoom", e => g.attr("transform", e.transform));
+        svg.call(zoom).on("dblclick.zoom", null);
+        const linkLayer = g.append("g").attr("class", "links");
+        const nodeLayer = g.append("g").attr("class", "nodes");
 
-        g = svg.append("g");
-        linkLayer = g.append("g").attr("class", "links");
-        nodeLayer = g.append("g").attr("class", "nodes");
-
-        simulation = d3.forceSimulation()
-            .force("link", d3.forceLink().id(d => d.id)) 
-            .force("charge", d3.forceManyBody()) 
-            .force("collide", d3.forceCollide().radius(d => d.radius + 10).iterations(3));
-            
-        const zoomInBtn = d3.select("#zoomInBtn");
-        const zoomOutBtn = d3.select("#zoomOutBtn");
-        const zoomFactor = 1.3;
-
-        function manualZoom(factor) {
-            if(!svg || !zoom) return;
-            svg.transition()
-                .duration(300) 
-                .call(zoom.scaleBy, factor); 
-        }
-
-        zoomInBtn.on("click", () => manualZoom(zoomFactor));
-        zoomOutBtn.on("click", () => manualZoom(1 / zoomFactor));
-
-        if(window.dataset.nodes.length > 0) restartSimulation();
+        const simulation = d3.forceSimulation()
+            .force("link", d3.forceLink().id(d => d.id))
+            .force("charge", d3.forceManyBody().strength(-450))
+            .force("center", d3.forceCenter(initialWidth / 2, initialHeight / 2))
+            .force("collide", d3.forceCollide().radius(d => d.radius + 12));
 
         function restartSimulation() {
-            if(!simulation) return; 
-            width = window.innerWidth;
-            height = window.innerHeight;
-            const isMobile = width < 600;
-
-            simulation.force("center", d3.forceCenter(width / 2, height / 2));
-            simulation.force("link").distance(isMobile ? 55 : 110);
-            simulation.force("charge").strength(isMobile ? -250 : -450);
-
+            const currentW = window.innerWidth;
+            const currentH = window.innerHeight;
             simulation.nodes(window.dataset.nodes);
             simulation.force("link").links(window.dataset.links);
-            update();
-            
+            simulation.force("center", d3.forceCenter(currentW / 2, currentH / 2));
             simulation.alpha(1).alphaTarget(0).restart();
-            setTimeout(zoomToFit, 300);
+            update();
         }
-
-        function zoomToFit() {
-            const nodes = window.dataset.nodes;
-            if (!nodes || nodes.length === 0 || !svg) return;
-
-            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-            nodes.forEach(d => {
-                if (d.x === undefined || d.y === undefined) return;
-                minX = Math.min(minX, d.x - d.radius); maxX = Math.max(maxX, d.x + d.radius);
-                minY = Math.min(minY, d.y - d.radius); maxY = Math.max(maxY, d.y + d.radius);
-            });
-            if (minX === Infinity) return; 
-
-            const contentW = maxX - minX;
-            const contentH = maxY - minY;
-            if (contentW === 0 || contentH === 0) return;
-
-            let scale = 0.85 / Math.max(contentW / width, contentH / height);
-            if (scale > 1) scale = 1; 
-
-            svg.transition().duration(1200).call(
-                zoom.transform, 
-                d3.zoomIdentity
-                    .translate(width / 2 * (1 - scale), height / 2 * (1 - scale))
-                    .scale(scale)
-            );
-        }
-
-        window.addEventListener('resize', () => {
-            if(!svg) return;
-            width = window.innerWidth;
-            height = window.innerHeight;
-            svg.attr("width", width).attr("height", height);
-            simulation.force("center", d3.forceCenter(width / 2, height / 2));
-            simulation.alpha(0.3).restart();
-        });
 
         let isTimerRunning = false;
-
         function update() {
-            const link = linkLayer.selectAll(".link")
-                .data(window.dataset.links, d => (d.source.id || d.source) + "-" + (d.target.id || d.target))
-                .join("line")
-                .attr("class", "link")
-                .attr("stroke", "#000000") 
-                .attr("stroke-width", 2);
+            const link = linkLayer.selectAll("line").data(window.dataset.links, d => (d.source.id || d.source) + "-" + (d.target.id || d.target))
+                .join("line").attr("stroke", "#000000").attr("stroke-width", 2);
 
-            const node = nodeLayer.selectAll(".node")
-                .data(window.dataset.nodes, d => d.id)
-                .join(
-                    enter => {
-                        const nodeG = enter.append("g").attr("class", "node").call(drag(simulation));
-                        nodeG.append("circle")
-                            .attr("stroke", "#000")
-                            .attr("stroke-width", 2) 
-                            .style("cursor", "pointer")
-                            .style("filter", "drop-shadow(0px 3px 3px rgba(0,0,0,0.1))")
-                            .on("click", (event, d) => { 
-                                event.stopPropagation(); 
-                                if (d.color === "#ffffff" && d.label.includes("is not created yet")) return;
-                                openModal(d); 
-                            })
-                            .on("contextmenu", (event, d) => {
-                                if (event.pointerType === "touch" || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-                                    return; 
-                                }
-                                event.preventDefault(); 
-                                event.stopPropagation();
-                                
-                                if (!isAdmin) return;
+            const node = nodeLayer.selectAll(".node").data(window.dataset.nodes, d => d.id).join(enter => {
+                const nodeG = enter.append("g").attr("class", "node").call(d3.drag()
+                    .on("start", (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+                    .on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; })
+                    .on("end", (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }));
+                
+                nodeG.append("circle").attr("stroke", "#000").attr("stroke-width", 2).style("cursor", "pointer")
+                    .on("click", (event, d) => { 
+                        event.stopPropagation(); 
+                        if (d.label.includes("not created yet")) return;
+                        openModal(d); 
+                    })
+                    .on("contextmenu", (event, d) => {
+                        event.preventDefault(); event.stopPropagation();
+                        if (!isAdmin) return;
+                        if (d.id === "root") { openDeleteTreeModal(handle); return; }
+                        openDeleteModal(d);
+                    });
+                
+                nodeG.append("foreignObject").style("pointer-events", "none").append("xhtml:div").attr("class", "bubble-text");
+                return nodeG;
+            });
 
-                                if (d.id === "root") {
-                                    openDeleteTreeModal(handle);
-                                    return;
-                                }
-                                openDeleteModal(d);
-                            });
-                            
-                        nodeG.append("foreignObject")
-                            .style("pointer-events", "none") 
-                            .append("xhtml:div")
-                            .attr("class", "bubble-text");
-                        return nodeG;
-                    }
-                );
-
-            node.select("circle")
-                .attr("r", d => d.radius)
-                .attr("fill", d => d.color);
-
+            node.select("circle").attr("r", d => d.radius).attr("fill", d => d.color);
+            
+            // 💡 루트 노드 텍스트 롤백: 지름보다 크게 잡아서 글자가 시원하게 보이도록 수정
             node.select("foreignObject")
                 .attr("width", d => d.id === "root" ? d.radius * 3.5 : d.radius * 1.45) 
                 .attr("height", d => d.id === "root" ? d.radius * 3.5 : d.radius * 1.45)
@@ -705,10 +347,11 @@
                         const scalingFactor = handle.length > 15 ? 15 / handle.length : 1;
                         const dynamicFontSize = (0.95 * scalingFactor) + "em";
 
-                        if (d.label.includes("is not created yet")) {
+                        if (d.label.includes("not created yet")) {
                             return `<div style="display:flex; align-items:center; justify-content:center; width:100%; height:100%; font-size:0.8em; color:#777; padding: 0 10px; box-sizing: border-box;">${d.label.replace('\n', '<br>')}</div>`;
                         }
 
+                        // 💡 링크 이슈 전의 가장 깔끔한 레이아웃으로 롤백
                         return `
                             <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; height: 100%; text-align: center; padding: 0 10px; box-sizing: border-box;">
                                 <span style="font-size: 0.85em; margin-bottom: 2px;">What do you think of</span>
@@ -728,122 +371,80 @@
                 isTimerRunning = true;
                 d3.timer(() => {
                     const time = Date.now() / 1000;
-                    
                     nodeLayer.selectAll(".node").attr("transform", d => {
-                        if(!d.x) d.x = width/2; if(!d.y) d.y = height/2;
                         d.displayX = d.x + (Math.cos(time * 2.5 + (d.phase||0)) * 5);
                         d.displayY = d.y + (Math.sin(time * 3.0 + (d.phase||0)) * 8); 
                         return `translate(${d.displayX}, ${d.displayY})`;
                     });
-                    
-                    linkLayer.selectAll(".link")
-                        .attr("x1", d => d.source.displayX || d.source.x)
-                        .attr("y1", d => d.source.displayY || d.source.y) 
-                        .attr("x2", d => d.target.displayX || d.target.x)
-                        .attr("y2", d => d.target.displayY || d.target.y);
+                    linkLayer.selectAll("line").attr("x1", d => d.source.displayX || d.source.x).attr("y1", d => d.source.displayY || d.source.y).attr("x2", d => d.target.displayX || d.target.x).attr("y2", d => d.target.displayY || d.target.y);
                 });
             }
         }
 
-        window.openModal = function(node) {
-            selectedNode = node;
-            document.getElementById("inputModal").style.display = "flex";
-            document.getElementById("commentInput").focus();
-        }
+        let selNode;
+        window.openModal = (n) => { selNode = n; document.getElementById('inputModal').style.display = 'flex'; document.getElementById('commentInput').focus(); };
+        window.closeModal = () => { document.getElementById('inputModal').style.display = 'none'; document.getElementById('commentInput').value = ''; };
+        window.submitComment = async () => {
+            const v = document.getElementById('commentInput').value.trim();
+            if (!v) return;
+            const nid = "node-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5);
+            window.dataset.nodes.push({ id: nid, label: v, color: "#ffffff", radius: 50, x: selNode.x + (Math.random() - 0.5) * 50, y: selNode.y + (Math.random() - 0.5) * 50, phase: Math.random() * Math.PI * 2 });
+            window.dataset.links.push({ source: selNode.id, target: nid });
+            const p = window.dataset.nodes.find(n => n.id === selNode.id);
+            if (p && p.radius < 200) p.radius += 8;
+            closeModal();
+            const nodes = window.dataset.nodes.map(n => ({ id: n.id, label: n.label, color: n.color, radius: n.radius, x: n.x, y: n.y, phase: n.phase }));
+            const links = window.dataset.links.map(l => ({ source: l.source.id || l.source, target: l.target.id || l.target }));
+            await updateDoc(docRef, { nodes, links });
+        };
 
-        window.closeModal = function() {
-            document.getElementById("inputModal").style.display = "none";
-            document.getElementById("commentInput").value = "";
-            selectedNode = null;
-        }
-
-        window.submitComment = async function() {
-            const text = document.getElementById("commentInput").value;
-            if (!text) return alert("Please enter a comment.");
-
-            // 💡 2. 초광속 더블 클릭 에러 완벽 차단 (고유 난수 부여)
-            const newId = "node-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9);
-            const newNode = { id: newId, label: text, color: "#ffffff", radius: 50, x: selectedNode.x + (Math.random() - 0.5) * 50, y: selectedNode.y + (Math.random() - 0.5) * 50, phase: Math.random() * Math.PI * 2 };
-            const newLink = { source: selectedNode.id, target: newId };
-
-            window.dataset.nodes.push(newNode);
-            window.dataset.links.push(newLink);
-            
-            const parentNode = window.dataset.nodes.find(n => n.id === selectedNode.id);
-            if (parentNode && parentNode.radius < 200) parentNode.radius += 8;
-
-            window.closeModal();
-
-            const saveNodes = window.dataset.nodes.map(n => ({ id: n.id, label: n.label, color: n.color, radius: n.radius, x: n.x, y: n.y, phase: n.phase }));
-            const saveLinks = window.dataset.links.map(l => ({ source: l.source.id || l.source, target: l.target.id || l.target }));
-
-            await updateDoc(docRef, { nodes: saveNodes, links: saveLinks });
-        }
-
-        window.openDeleteModal = function(node) {
-            nodeToDelete = node;
-            document.getElementById("deleteModal").style.display = "flex";
-        }
-
-        window.closeDeleteModal = function() {
-            document.getElementById("deleteModal").style.display = "none";
-            nodeToDelete = null;
-        }
-
+        let nodeToDel;
+        window.openDeleteModal = (n) => { nodeToDel = n; document.getElementById('deleteModal').style.display = 'flex'; };
+        window.closeDeleteModal = () => { document.getElementById('deleteModal').style.display = 'none'; nodeToDel = null; };
         window.submitDelete = async function() {
-            if (!isAdmin) {
-                alert("Permission denied. Only admins can delete nodes.");
-                return;
-            }
-
-            if (!nodeToDelete) return;
-
-            const nodesToRemove = new Set([nodeToDelete.id]);
+            if (!isAdmin || !nodeToDel) return;
+            const toRemove = new Set([nodeToDel.id]);
             let added;
             do {
                 added = false;
                 window.dataset.links.forEach(l => {
-                    const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
-                    const targetId = typeof l.target === 'object' ? l.target.id : l.target;
-                    
-                    if (nodesToRemove.has(sourceId) && !nodesToRemove.has(targetId)) {
-                        nodesToRemove.add(targetId);
-                        added = true;
-                    }
+                    const src = l.source.id || l.source;
+                    const tgt = l.target.id || l.target;
+                    if (toRemove.has(src) && !toRemove.has(tgt)) { toRemove.add(tgt); added = true; }
                 });
             } while(added);
+            window.dataset.nodes = window.dataset.nodes.filter(n => !toRemove.has(n.id));
+            window.dataset.links = window.dataset.links.filter(l => !toRemove.has(l.source.id || l.source) && !toRemove.has(l.target.id || l.target));
+            closeDeleteModal();
+            const nodes = window.dataset.nodes.map(n => ({ id: n.id, label: n.label, color: n.color, radius: n.radius, x: n.x, y: n.y, phase: n.phase }));
+            const links = window.dataset.links.map(l => ({ source: l.source.id || l.source, target: l.target.id || l.target }));
+            await updateDoc(docRef, { nodes, links });
+        };
 
-            window.dataset.nodes = window.dataset.nodes.filter(n => !nodesToRemove.has(n.id));
-            window.dataset.links = window.dataset.links.filter(l => {
-                const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
-                const targetId = typeof l.target === 'object' ? l.target.id : l.target;
-                return !nodesToRemove.has(sourceId) && !nodesToRemove.has(targetId);
-            });
+        let treeToDel;
+        window.openDeleteTreeModal = (h) => { treeToDel = h; document.getElementById('treeToDeleteName').innerText = h; document.getElementById('deleteTreeModal').style.display = 'flex'; };
+        window.closeDeleteTreeModal = () => { document.getElementById('deleteTreeModal').style.display = 'none'; treeToDel = null; };
+        window.submitDeleteTree = async function() {
+            if (!isAdmin || !treeToDel) return;
+            const target = treeToDel;
+            if (target.toLowerCase() === handle.toLowerCase() && typeof window.unsubTree === 'function') window.unsubTree();
+            await deleteDoc(doc(db, "trees", target));
+            await updateDoc(doc(db, "metadata", "handles"), { list: arrayRemove(target) }).catch(e => console.log(e));
+            window.location.href = "/@wooramsol";
+        };
 
-            window.closeDeleteModal();
-
-            const saveNodes = window.dataset.nodes.map(n => ({ id: n.id, label: n.label, color: n.color, radius: n.radius, x: n.x, y: n.y, phase: n.phase }));
-            const saveLinks = window.dataset.links.map(l => ({ source: l.source.id || l.source, target: l.target.id || l.target }));
-
-            await updateDoc(docRef, { nodes: saveNodes, links: saveLinks });
-        }
-
-        function drag(simulation) {
-            function dragstarted(event, d) { 
-                if (!event.active) simulation.alphaTarget(0.3).restart(); 
-                d.fx = d.x; d.fy = d.y; 
-            }
-            function dragged(event, d) { 
-                d.fx = event.x; d.fy = event.y; 
-            }
-            function dragended(event, d) { 
-                if (!event.active) simulation.alphaTarget(0); 
-                d.fx = null; d.fy = null; 
-            }
-            return d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended);
-        }
-
-        document.getElementById("commentInput").addEventListener("keyup", e => { if (e.key === "Enter") window.submitComment(); });
+        d3.select("#zoomInBtn").on("click", () => svg.transition().duration(300).call(zoom.scaleBy, 1.4));
+        d3.select("#zoomOutBtn").on("click", () => svg.transition().duration(300).call(zoom.scaleBy, 0.7));
+        
+        window.addEventListener('resize', () => { 
+            const newW = window.innerWidth;
+            const newH = window.innerHeight;
+            svg.attr("width", newW).attr("height", newH);
+            simulation.force("center", d3.forceCenter(newW / 2, newH / 2)).alpha(0.3).restart();
+        });
+        
+        navInput.addEventListener("keyup", e => { if (e.key === "Enter") window.navigateToHandle(); });
+        loadTreesData();
     </script>
 </body>
 </html>
