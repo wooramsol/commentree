@@ -4,150 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>commentree</title>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
+    
+    <link rel="preconnect" href="https://d3js.org">
+    <link rel="preconnect" href="https://www.gstatic.com">
+    
+    <script src="https://d3js.org/d3.v7.min.js" defer></script>
+    
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #f9f9f9; font-family: 'Helvetica Neue', Arial, sans-serif; }
         
-        header { 
-            position: absolute; 
-            top: 15px; 
-            left: 15px; 
-            z-index: 10; 
-            pointer-events: none; 
-            display: flex;
-            flex-direction: column; 
-            align-items: flex-start;
-            max-width: 96%; 
-        }
-
-        .nav-box {
-            background: rgba(255, 255, 255, 0.9); 
-            padding: 10px 14px; 
-            border-radius: 12px; 
-            backdrop-filter: blur(5px);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-            display: flex;
-            flex-direction: column; 
-            gap: 8px;
-            width: fit-content;
-            min-width: 260px; 
-            max-width: 100%; 
-            box-sizing: border-box; 
-            pointer-events: auto; 
-        }
-
-        .input-wrapper {
-            display: flex;
-            align-items: center;
-            width: 100%;
-            justify-content: space-between;
-        }
-
-        .domain-text {
-            font-weight: 800;
-            color: #000;
-            font-size: 1.15rem;
-            letter-spacing: -0.5px;
-            white-space: nowrap; 
-        }
-
-        #navInput {
-            border: none;
-            border-bottom: 2px solid #ddd; 
-            background: transparent;
-            font-size: 1.15rem;
-            font-weight: bold;
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            color: #000; 
-            width: 100%; 
-            padding: 0 4px; 
-            margin-left: 2px;
-            outline: none;
-            transition: border-color 0.3s;
-            flex-grow: 1;
-        }
+        header { position: absolute; top: 15px; left: 15px; z-index: 10; pointer-events: none; display: flex; flex-direction: column; align-items: flex-start; max-width: 96%; }
+        .nav-box { background: rgba(255, 255, 255, 0.9); padding: 10px 14px; border-radius: 12px; backdrop-filter: blur(5px); box-shadow: 0 4px 15px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 8px; width: fit-content; min-width: 260px; max-width: 100%; box-sizing: border-box; pointer-events: auto; }
+        .input-wrapper { display: flex; align-items: center; width: 100%; justify-content: space-between; }
+        .domain-text { font-weight: 800; color: #000; font-size: 1.15rem; letter-spacing: -0.5px; white-space: nowrap; }
+        
+        #navInput { border: none; border-bottom: 2px solid #ddd; background: transparent; font-size: 1.15rem; font-weight: bold; font-family: 'Helvetica Neue', Arial, sans-serif; color: #000; width: 100%; padding: 0 4px; margin-left: 2px; outline: none; transition: border-color 0.3s; flex-grow: 1; }
         #navInput::placeholder { color: #999; font-weight: 500; }
         #navInput:focus { border-bottom: 2px solid #0095f6; }
-
-        #goBtn {
-            background: none;
-            border: none;
-            font-size: 1.3rem;
-            cursor: pointer;
-            color: #0095f6;
-            padding: 0 0 0 5px;
-            transition: transform 0.2s;
-            flex-shrink: 0; 
-        }
-        #goBtn:hover { transform: translateX(3px); }
-
-        .instruction-text {
-            font-size: 0.85rem;
-            color: #666;
-            margin: 0; 
-            padding-left: 2px;
-        }
-
-        .dropdown-btn {
-            background: #f0f0f0;
-            border: none;
-            border-radius: 6px;
-            padding: 6px 10px;
-            font-size: 0.85rem;
-            font-weight: bold;
-            color: #444;
-            cursor: pointer;
-            text-align: left;
-            transition: background 0.2s;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .dropdown-btn:hover { background: #e4e4e4; }
-
-        .dropdown-arrow {
-            display: inline-block;
-            transition: transform 0.3s ease;
-        }
-        .dropdown-btn.open .dropdown-arrow {
-            transform: rotate(180deg);
-        }
-
-        .handles-list-container {
-            display: flex;
-            flex-direction: column; 
-            gap: 4px;
-            max-height: 150px; 
-            overflow-y: auto;
-            padding-right: 4px; 
-            margin-top: 2px;
-        }
         
+        #goBtn { background: none; border: none; font-size: 1.3rem; cursor: pointer; color: #0095f6; padding: 0 0 0 5px; transition: transform 0.2s; flex-shrink: 0; }
+        #goBtn:hover { transform: translateX(3px); }
+        .instruction-text { font-size: 0.85rem; color: #666; margin: 0; padding-left: 2px; }
+        
+        .dropdown-btn { background: #f0f0f0; border: none; border-radius: 6px; padding: 6px 10px; font-size: 0.85rem; font-weight: bold; color: #444; cursor: pointer; text-align: left; transition: background 0.2s; display: flex; justify-content: space-between; align-items: center; }
+        .dropdown-btn:hover { background: #e4e4e4; }
+        .dropdown-arrow { display: inline-block; transition: transform 0.3s ease; }
+        .dropdown-btn.open .dropdown-arrow { transform: rotate(180deg); }
+        
+        .handles-list-container { display: flex; flex-direction: column; gap: 4px; max-height: 150px; overflow-y: auto; padding-right: 4px; margin-top: 2px; }
         .hidden { display: none !important; }
-
         .handles-list-container::-webkit-scrollbar { width: 4px; }
         .handles-list-container::-webkit-scrollbar-thumb { background-color: #ccc; border-radius: 4px; }
-
-        .handles-list-container a {
-            background: rgba(0, 149, 246, 0.05);
-            color: #333;
-            text-decoration: none;
-            padding: 6px 10px;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            font-weight: 500;
-            transition: background 0.2s, color 0.2s;
-            display: block; 
-            word-break: break-all;
-        }
+        .handles-list-container a { background: rgba(0, 149, 246, 0.05); color: #333; text-decoration: none; padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; transition: background 0.2s, color 0.2s; display: block; word-break: break-all; }
         .handles-list-container a:hover { background: #0095f6; color: white; }
-
+        
         @media (max-width: 600px) {
             header { left: 50%; transform: translateX(-50%); top: 15px; width: 96%; align-items: center; }
             .nav-box { width: 100%; min-width: auto; }
         }
-
-        /* 모달 공통 스타일 */
+        
         #inputModal, #deleteModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 100; justify-content: center; align-items: center; }
         .modal-content { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center; width: 85%; max-width: 320px; }
         input[type="text"].modal-input, input[type="password"].modal-input { width: 90%; padding: 12px; margin: 15px 0; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; box-sizing: border-box;} 
@@ -155,12 +50,7 @@
         button.modal-btn:hover { background: #333; }
         .delete-btn { background: #d9534f !important; } 
         .delete-btn:hover { background: #c9302c !important; }
-
-        .bubble-text {
-            display: flex; justify-content: center; align-items: center; text-align: center;
-            width: 100%; height: 100%; white-space: normal;
-            word-wrap: break-word; word-break: break-word; line-height: 1.2; overflow: hidden; padding: 2px; box-sizing: border-box;
-        }
+        .bubble-text { display: flex; justify-content: center; align-items: center; text-align: center; width: 100%; height: 100%; white-space: normal; word-wrap: break-word; word-break: break-word; line-height: 1.2; overflow: hidden; padding: 2px; box-sizing: border-box; }
     </style>
 </head>
 <body>
@@ -251,13 +141,23 @@
             if(!val.startsWith('@')) val = '@' + val;
             window.location.href = "/" + val.toLowerCase();
         }
+        
         navInput.addEventListener("keyup", e => { if (e.key === "Enter") window.navigateToHandle(); });
 
-        window.toggleDropdown = function() {
+        // 💡 최적화 1: 드롭다운 토글 시 데이터 지연 로딩 (Lazy Loading)
+        let isTreesLoaded = false;
+        window.toggleDropdown = async function() {
             const list = document.getElementById("allHandlesList");
             const btn = document.getElementById("dropdownToggle");
             const isHidden = list.classList.toggle("hidden");
             btn.classList.toggle("open", !isHidden);
+
+            // 열릴 때 최초 1회만 데이터베이스에서 트리를 불러옴
+            if (!isHidden && !isTreesLoaded) {
+                list.innerHTML = "<span style='font-size: 0.8rem; color:#999; padding: 4px;'>Loading trees...</span>";
+                await fetchAllHandles();
+                isTreesLoaded = true;
+            }
         }
 
         async function fetchAllHandles() {
@@ -294,7 +194,6 @@
                 document.getElementById("allHandlesList").innerHTML = "Failed to load trees.";
             }
         }
-        fetchAllHandles();
 
         window.dataset = { nodes: [], links: [] };
         let selectedNode = null;
@@ -315,7 +214,6 @@
                     }
                     return node;
                 });
-
                 window.dataset = { nodes, links: data.links.map(d => ({...d})) };
             } else {
                 const initialData = {
@@ -328,20 +226,30 @@
             restartSimulation(); 
         });
 
-        const svg = d3.select("#chart").append("svg").attr("width", width).attr("height", height);
-        const zoom = d3.zoom().on("zoom", event => g.attr("transform", event.transform));
-        svg.call(zoom).on("dblclick.zoom", null); 
+        // 초기화 시 svg를 미리 할당 (defer 사용 시점 고려)
+        let svg, g, linkLayer, nodeLayer, simulation, zoom;
+        
+        // 브라우저 렌더링 후 D3 초기화를 안전하게 실행
+        window.addEventListener('DOMContentLoaded', () => {
+            svg = d3.select("#chart").append("svg").attr("width", width).attr("height", height);
+            zoom = d3.zoom().on("zoom", event => g.attr("transform", event.transform));
+            svg.call(zoom).on("dblclick.zoom", null); 
 
-        const g = svg.append("g");
-        const linkLayer = g.append("g").attr("class", "links");
-        const nodeLayer = g.append("g").attr("class", "nodes");
+            g = svg.append("g");
+            linkLayer = g.append("g").attr("class", "links");
+            nodeLayer = g.append("g").attr("class", "nodes");
 
-        const simulation = d3.forceSimulation()
-            .force("link", d3.forceLink().id(d => d.id)) 
-            .force("charge", d3.forceManyBody()) 
-            .force("collide", d3.forceCollide().radius(d => d.radius + 10).iterations(3));
+            simulation = d3.forceSimulation()
+                .force("link", d3.forceLink().id(d => d.id)) 
+                .force("charge", d3.forceManyBody()) 
+                .force("collide", d3.forceCollide().radius(d => d.radius + 10).iterations(3));
+                
+            // 처음 데이터를 받아왔을 수도 있으니 강제 리스타트
+            if(window.dataset.nodes.length > 0) restartSimulation();
+        });
 
         function restartSimulation() {
+            if(!simulation) return; // D3 로드 전 방어
             width = window.innerWidth;
             height = window.innerHeight;
             const isMobile = width < 600;
@@ -360,7 +268,7 @@
 
         function zoomToFit() {
             const nodes = window.dataset.nodes;
-            if (!nodes || nodes.length === 0) return;
+            if (!nodes || nodes.length === 0 || !svg) return;
 
             let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
             nodes.forEach(d => {
@@ -386,9 +294,10 @@
         }
 
         window.addEventListener('resize', () => {
+            if(!svg) return;
             width = window.innerWidth;
             height = window.innerHeight;
-            d3.select("svg").attr("width", width).attr("height", height);
+            svg.attr("width", width).attr("height", height);
             simulation.force("center", d3.forceCenter(width / 2, height / 2));
             simulation.alpha(0.3).restart();
         });
@@ -407,8 +316,8 @@
                 .data(window.dataset.nodes, d => d.id)
                 .join(
                     enter => {
-                        const g = enter.append("g").attr("class", "node").call(drag(simulation));
-                        g.append("circle")
+                        const nodeG = enter.append("g").attr("class", "node").call(drag(simulation));
+                        nodeG.append("circle")
                             .attr("stroke", "#000")
                             .attr("stroke-width", 2) 
                             .style("cursor", "pointer")
@@ -430,11 +339,11 @@
                                 openDeleteModal(d);
                             });
                             
-                        g.append("foreignObject")
+                        nodeG.append("foreignObject")
                             .style("pointer-events", "none") 
                             .append("xhtml:div")
                             .attr("class", "bubble-text");
-                        return g;
+                        return nodeG;
                     }
                 );
 
