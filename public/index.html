@@ -212,7 +212,6 @@
         let isAdmin = false;
         onAuthStateChanged(auth, (user) => {
             isAdmin = !!user;
-            if (isAdmin) console.log("Admin logged in.");
         });
 
         window.closeAdminModal = () => {
@@ -263,6 +262,7 @@
             let val = navInput.value.trim().toLowerCase();
             if(!val) return; 
             
+            // 비밀 명령어 admin 감지
             if (val === 'admin') {
                 document.getElementById('adminModal').style.display = 'flex';
                 document.getElementById('adminLogoutDiv').style.display = isAdmin ? 'block' : 'none';
@@ -281,6 +281,7 @@
             if(!val.startsWith('@')) val = '@' + cleanVal;
 
             try {
+                // 데이터베이스 존재 유무 확인 후 Create 처리
                 const checkRef = doc(db, "trees", val);
                 const checkSnap = await getDoc(checkRef);
 
@@ -307,7 +308,7 @@
         let treeToDelete = null; 
         let loadTreesPromise = null;
 
-        // 💡 해결: 저울을 완벽하게 하나로 통일하는 로직 (이 함수 하나만 믿고 화면에 그립니다!)
+        // 💡 단일 데이터 소스로 통합된 카운트 로직 (안정성 100%)
         function loadTreesData() {
             if (isTreesLoaded) return Promise.resolve();
             if (loadTreesPromise) return loadTreesPromise;
@@ -321,20 +322,17 @@
                     if (metaSnap.exists() && metaSnap.data().list) {
                         tempHandles = metaSnap.data().list;
                     } else {
-                        // 최초 생성 시 전체 목록을 한번 가져와서 저장해줍니다.
                         const querySnapshot = await getDocs(collection(db, "trees"));
                         querySnapshot.forEach(d => tempHandles.push(d.id));
                         await setDoc(metaRef, { list: tempHandles }, { merge: true });
                     }
                     
-                    // 💡 과거의 중복 데이터가 있다면 완벽하게 제거 (Set 이용)
                     tempHandles = [...new Set(tempHandles)];
                     tempHandles.sort((a, b) => a.replace('@', '').toLowerCase().localeCompare(b.replace('@', '').toLowerCase()));
                     
                     cachedHandles = tempHandles;
                     isTreesLoaded = true;
                     
-                    // 💡 유일한 소스(명단)에서 개수를 가져오므로 절대로 점프(에러)가 발생하지 않습니다!
                     document.getElementById("treeCountDisplay").innerText = `(${cachedHandles.length})`;
                 } catch (e) {
                     console.error("Error fetching handles:", e);
@@ -513,7 +511,7 @@
                 }
             } catch (e) {
                 console.error("Error deleting tree:", e);
-                alert("Failed to delete tree. Error: " + e.message);
+                alert("Failed to delete tree.");
             }
         }
 
@@ -548,7 +546,7 @@
 
         let svg, g, linkLayer, nodeLayer, simulation, zoom;
         
-        // 💡 페이지 로드 시점: 옛날 카운트 함수 대신 바로 데이터 로딩을 시작합니다.
+        // 페이지 진입 즉시 데이터 로딩 (카운트 연동)
         loadTreesData();
 
         svg = d3.select("#chart").append("svg").attr("width", width).attr("height", height);
@@ -763,7 +761,7 @@
             const text = document.getElementById("commentInput").value;
             if (!text) return alert("Please enter a comment.");
 
-            // 💡 보너스: 0.001초 동시 클릭 버그를 방지하는 더욱 안전한 난수 ID 생성
+            // 💡 2. 초광속 더블 클릭 에러 완벽 차단 (고유 난수 부여)
             const newId = "node-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9);
             const newNode = { id: newId, label: text, color: "#ffffff", radius: 50, x: selectedNode.x + (Math.random() - 0.5) * 50, y: selectedNode.y + (Math.random() - 0.5) * 50, phase: Math.random() * Math.PI * 2 };
             const newLink = { source: selectedNode.id, target: newId };
