@@ -107,10 +107,10 @@
             .nav-box { width: 100%; min-width: auto; }
         }
         
-        #inputModal, #deleteModal, #deleteTreeModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 100; justify-content: center; align-items: center; }
+        #inputModal, #deleteModal, #deleteTreeModal, #adminModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 100; justify-content: center; align-items: center; }
         .modal-content { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center; width: 85%; max-width: 320px; }
-        input[type="text"].modal-input, input[type="password"].modal-input { width: 90%; padding: 12px; margin: 15px 0; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; box-sizing: border-box;} 
-        button.modal-btn { padding: 10px 25px; background: #000; color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: bold; font-size: 1rem;}
+        input[type="text"].modal-input, input[type="password"].modal-input, input[type="email"].modal-input { width: 90%; padding: 12px; margin: 15px 0; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; box-sizing: border-box;} 
+        button.modal-btn { padding: 10px 25px; background: #000; color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: bold; font-size: 1rem; margin-top: 5px;}
         button.modal-btn:hover { background: #333; }
         .delete-btn { background: #d9534f !important; } 
         .delete-btn:hover { background: #c9302c !important; }
@@ -162,8 +162,6 @@
         <div class="modal-content">
             <h3 style="margin-bottom: 5px;">Delete Node?</h3>
             <p style="font-size: 0.85rem; color: #777; margin-top: 0;">Child nodes will also be deleted.</p>
-            <input type="password" id="deletePasswordInput" class="modal-input" placeholder="Enter password">
-            <br>
             <button class="modal-btn" onclick="closeDeleteModal()" style="background:#999; margin-right: 5px;">Cancel</button>
             <button class="modal-btn delete-btn" onclick="submitDelete()">Delete</button>
         </div>
@@ -173,17 +171,30 @@
         <div class="modal-content">
             <h3 style="margin-bottom: 5px;">Delete Entire Tree?</h3>
             <p style="font-size: 0.85rem; color: #777; margin-top: 0;">This will permanently remove <strong id="treeToDeleteName"></strong>.</p>
-            <input type="password" id="deleteTreePasswordInput" class="modal-input" placeholder="Enter password">
-            <br>
             <button class="modal-btn" onclick="closeDeleteTreeModal()" style="background:#999; margin-right: 5px;">Cancel</button>
             <button class="modal-btn delete-btn" onclick="submitDeleteTree()">Delete</button>
         </div>
     </div>
 
+    <div id="adminModal">
+        <div class="modal-content">
+            <h3 style="margin-bottom: 5px;">Admin Login</h3>
+            <input type="email" id="adminEmail" class="modal-input" placeholder="Admin Email">
+            <input type="password" id="adminPassword" class="modal-input" placeholder="Password">
+            <br>
+            <button class="modal-btn" onclick="closeAdminModal()" style="background:#999; margin-right: 5px;">Cancel</button>
+            <button class="modal-btn" onclick="submitAdminLogin()">Login</button>
+            
+            <div id="adminLogoutDiv" style="display: none; margin-top: 15px;">
+                <button class="modal-btn delete-btn" style="width: 100%;" onclick="submitAdminLogout()">Logout</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
-        // 💡 1. 비용 절감을 위해 getDoc, arrayUnion, arrayRemove 모듈 추가
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-        import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDocs, deleteDoc, getCountFromServer, getDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+        import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDocs, deleteDoc, getDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD03P2MQJUUwTpkc2B6EGTrttPtb0JKbxU",
@@ -196,6 +207,36 @@
         };
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        let isAdmin = false;
+        onAuthStateChanged(auth, (user) => {
+            isAdmin = !!user;
+            if (isAdmin) console.log("Admin logged in.");
+        });
+
+        window.closeAdminModal = () => {
+            document.getElementById('adminModal').style.display = 'none';
+            document.getElementById('adminPassword').value = '';
+        };
+
+        window.submitAdminLogin = async () => {
+            const email = document.getElementById('adminEmail').value;
+            const pw = document.getElementById('adminPassword').value;
+            try {
+                await signInWithEmailAndPassword(auth, email, pw);
+                alert("Successfully logged in as Admin.");
+                closeAdminModal();
+            } catch (e) {
+                alert("Login failed. Check your credentials.");
+            }
+        };
+
+        window.submitAdminLogout = async () => {
+            await signOut(auth);
+            alert("Logged out securely.");
+            closeAdminModal();
+        };
 
         const igRegex = /^(?!.*\.\.)(?!^\.)(?!.*\.$)[a-zA-Z0-9._]{1,30}$/;
 
@@ -216,66 +257,92 @@
 
         const navInput = document.getElementById("navInput");
         navInput.placeholder = handle; 
+        navInput.value = "";
         
-        window.navigateToHandle = function() {
-            let val = navInput.value.trim();
+        window.navigateToHandle = async function() {
+            let val = navInput.value.trim().toLowerCase();
             if(!val) return; 
             
+            if (val === 'admin') {
+                document.getElementById('adminModal').style.display = 'flex';
+                document.getElementById('adminLogoutDiv').style.display = isAdmin ? 'block' : 'none';
+                document.getElementById('adminEmail').focus();
+                navInput.value = '';
+                document.getElementById('autocompleteList').style.display = 'none';
+                return;
+            }
+
             let cleanVal = val.replace('@', '');
             if (!igRegex.test(cleanVal)) {
                 alert("Invalid handle. Instagram handles can only contain letters, numbers, periods, and underscores (Max 30 chars).");
                 return;
             }
 
-            if(!val.startsWith('@')) val = '@' + val;
-            window.location.href = "/" + val.toLowerCase();
+            if(!val.startsWith('@')) val = '@' + cleanVal;
+
+            try {
+                const checkRef = doc(db, "trees", val);
+                const checkSnap = await getDoc(checkRef);
+
+                if (!checkSnap.exists()) {
+                    const initialData = {
+                        nodes: [{ id: "root", label: `What do you think of ${val}?`, color: "#ffffff", radius: 80, x: window.innerWidth / 2, y: window.innerHeight / 2, phase: Math.random() * Math.PI * 2 }],
+                        links: []
+                    };
+                    await setDoc(checkRef, initialData);
+                    await setDoc(doc(db, "metadata", "handles"), { list: arrayUnion(val) }, { merge: true });
+                }
+                
+                window.location.href = "/" + val;
+            } catch(e) {
+                console.error(e);
+                alert("Network error.");
+            }
         }
         
         navInput.addEventListener("keyup", e => { if (e.key === "Enter") window.navigateToHandle(); });
 
         let isTreesLoaded = false;
-        let isTreesLoading = false;
         let cachedHandles = [];
         let treeToDelete = null; 
+        let loadTreesPromise = null;
 
-        // 💡 요금 폭탄 방지: 가벼운 메타데이터 문서만 읽어옴 (자동 마이그레이션 적용)
-        async function loadTreesData() {
-            if (isTreesLoaded || isTreesLoading) return;
-            isTreesLoading = true;
-            try {
-                const metaRef = doc(db, "metadata", "handles");
-                const metaSnap = await getDoc(metaRef);
-                let tempHandles = [];
-                
-                if (metaSnap.exists() && metaSnap.data().list) {
-                    // 새 방식: 인덱스만 읽기 (Read 1회)
-                    tempHandles = metaSnap.data().list;
-                } else {
-                    // 호환성: 처음일 경우 전체 문서 읽어와서 저장해주기
-                    const querySnapshot = await getDocs(collection(db, "trees"));
-                    querySnapshot.forEach(d => tempHandles.push(d.id));
-                    await setDoc(metaRef, { list: tempHandles }, { merge: true });
+        // 💡 해결: 저울을 완벽하게 하나로 통일하는 로직 (이 함수 하나만 믿고 화면에 그립니다!)
+        function loadTreesData() {
+            if (isTreesLoaded) return Promise.resolve();
+            if (loadTreesPromise) return loadTreesPromise;
+
+            loadTreesPromise = (async () => {
+                try {
+                    const metaRef = doc(db, "metadata", "handles");
+                    const metaSnap = await getDoc(metaRef);
+                    let tempHandles = [];
+                    
+                    if (metaSnap.exists() && metaSnap.data().list) {
+                        tempHandles = metaSnap.data().list;
+                    } else {
+                        // 최초 생성 시 전체 목록을 한번 가져와서 저장해줍니다.
+                        const querySnapshot = await getDocs(collection(db, "trees"));
+                        querySnapshot.forEach(d => tempHandles.push(d.id));
+                        await setDoc(metaRef, { list: tempHandles }, { merge: true });
+                    }
+                    
+                    // 💡 과거의 중복 데이터가 있다면 완벽하게 제거 (Set 이용)
+                    tempHandles = [...new Set(tempHandles)];
+                    tempHandles.sort((a, b) => a.replace('@', '').toLowerCase().localeCompare(b.replace('@', '').toLowerCase()));
+                    
+                    cachedHandles = tempHandles;
+                    isTreesLoaded = true;
+                    
+                    // 💡 유일한 소스(명단)에서 개수를 가져오므로 절대로 점프(에러)가 발생하지 않습니다!
+                    document.getElementById("treeCountDisplay").innerText = `(${cachedHandles.length})`;
+                } catch (e) {
+                    console.error("Error fetching handles:", e);
+                } finally {
+                    loadTreesPromise = null;
                 }
-                
-                tempHandles.sort((a, b) => a.replace('@', '').toLowerCase().localeCompare(b.replace('@', '').toLowerCase()));
-                cachedHandles = tempHandles;
-                isTreesLoaded = true;
-                
-                document.getElementById("treeCountDisplay").innerText = `(${cachedHandles.length})`;
-            } catch (e) {
-                console.error("Error fetching handles:", e);
-            } finally {
-                isTreesLoading = false;
-            }
-        }
-
-        async function updateTreeCount() {
-            try {
-                const snapshot = await getCountFromServer(collection(db, "trees"));
-                document.getElementById("treeCountDisplay").innerText = `(${snapshot.data().count})`;
-            } catch (e) {
-                console.error("Error getting tree count:", e);
-            }
+            })();
+            return loadTreesPromise;
         }
 
         window.toggleDropdown = async function() {
@@ -312,6 +379,7 @@
                     aTag.classList.add('active-item');
                     aTag.title = "Current Tree";
                 }
+                
                 listEl.appendChild(aTag);
             });
         }
@@ -327,7 +395,6 @@
             if (navInput.value.trim()) showAutocomplete();
         });
 
-        // 💡 타이핑 디바운싱: 타자를 다 치고 0.25초 뒤에만 연산 실행
         let debounceTimer;
         navInput.addEventListener('input', () => {
             clearTimeout(debounceTimer);
@@ -347,8 +414,13 @@
             if (!isTreesLoaded) return;
             
             let val = navInput.value.trim().replace('@', '').toLowerCase();
-            const goBtn = document.getElementById('goBtn');
             
+            if (val === 'admin') {
+                autocompleteList.style.display = 'none';
+                return;
+            }
+
+            const goBtn = document.getElementById('goBtn');
             const exactMatch = cachedHandles.some(h => h.replace('@', '').toLowerCase() === val);
             const isValid = igRegex.test(val);
 
@@ -403,19 +475,16 @@
             treeToDelete = targetHandle;
             document.getElementById("treeToDeleteName").innerText = targetHandle;
             document.getElementById("deleteTreeModal").style.display = "flex";
-            document.getElementById("deleteTreePasswordInput").focus();
         }
 
         window.closeDeleteTreeModal = function() {
             document.getElementById("deleteTreeModal").style.display = "none";
-            document.getElementById("deleteTreePasswordInput").value = "";
             treeToDelete = null;
         }
 
         window.submitDeleteTree = async function() {
-            const pw = document.getElementById("deleteTreePasswordInput").value;
-            if (pw !== "921102") {
-                alert("Incorrect password.");
+            if (!isAdmin) {
+                alert("Permission denied. Only admins can delete trees.");
                 return;
             }
 
@@ -428,8 +497,6 @@
                 }
 
                 await deleteDoc(doc(db, "trees", target));
-                
-                // 💡 인덱스 문서에서도 삭제된 핸들 지우기
                 await updateDoc(doc(db, "metadata", "handles"), { list: arrayRemove(target) }).catch(e => console.log(e));
                 
                 cachedHandles = cachedHandles.filter(h => h !== target);
@@ -449,8 +516,6 @@
                 alert("Failed to delete tree. Error: " + e.message);
             }
         }
-
-        document.getElementById("deleteTreePasswordInput").addEventListener("keyup", e => { if (e.key === "Enter") window.submitDeleteTree(); });
 
         window.dataset = { nodes: [], links: [] };
         let selectedNode = null;
@@ -473,25 +538,18 @@
                 });
                 window.dataset = { nodes, links: data.links.map(d => ({...d})) };
             } else {
-                const initialData = {
-                    nodes: [{ id: "root", label: `What do you think of ${handle}?`, color: "#ffffff", radius: 80, x: width / 2, y: height / 2, phase: Math.random() * Math.PI * 2 }],
+                window.dataset = {
+                    nodes: [{ id: "root", label: `"${handle}" is not created yet.\nType in search bar and click Create!`, color: "#ffffff", radius: 80, x: width / 2, y: height / 2, phase: 0 }],
                     links: []
                 };
-                
-                setDoc(docRef, initialData).then(async () => {
-                    // 💡 인덱스 문서에 새 핸들 추가
-                    await setDoc(doc(db, "metadata", "handles"), { list: arrayUnion(handle) }, { merge: true });
-                    updateTreeCount();
-                    isTreesLoaded = false; 
-                });
-                window.dataset = initialData;
             }
             restartSimulation(); 
         });
 
         let svg, g, linkLayer, nodeLayer, simulation, zoom;
         
-        updateTreeCount();
+        // 💡 페이지 로드 시점: 옛날 카운트 함수 대신 바로 데이터 로딩을 시작합니다.
+        loadTreesData();
 
         svg = d3.select("#chart").append("svg").attr("width", width).attr("height", height);
         zoom = d3.zoom().on("zoom", event => g.attr("transform", event.transform));
@@ -536,7 +594,6 @@
             simulation.force("link").links(window.dataset.links);
             update();
             
-            // 💡 배터리 최적화: alphaTarget(0.05) -> (0) 으로 변경해 불필요한 물리연산 정지
             simulation.alpha(1).alphaTarget(0).restart();
             setTimeout(zoomToFit, 300);
         }
@@ -599,6 +656,7 @@
                             .style("filter", "drop-shadow(0px 3px 3px rgba(0,0,0,0.1))")
                             .on("click", (event, d) => { 
                                 event.stopPropagation(); 
+                                if (d.color === "#ffffff" && d.label.includes("is not created yet")) return;
                                 openModal(d); 
                             })
                             .on("contextmenu", (event, d) => {
@@ -608,6 +666,8 @@
                                 event.preventDefault(); 
                                 event.stopPropagation();
                                 
+                                if (!isAdmin) return;
+
                                 if (d.id === "root") {
                                     openDeleteTreeModal(handle);
                                     return;
@@ -625,7 +685,7 @@
 
             node.select("circle")
                 .attr("r", d => d.radius)
-                .attr("fill", d => d.id === "root" ? "#ffffff" : d.color);
+                .attr("fill", d => d.color);
 
             node.select("foreignObject")
                 .attr("width", d => d.id === "root" ? d.radius * 3.5 : d.radius * 1.45) 
@@ -647,6 +707,10 @@
                         const scalingFactor = handle.length > 15 ? 15 / handle.length : 1;
                         const dynamicFontSize = (0.95 * scalingFactor) + "em";
 
+                        if (d.label.includes("is not created yet")) {
+                            return `<div style="display:flex; align-items:center; justify-content:center; width:100%; height:100%; font-size:0.8em; color:#777; padding: 0 10px; box-sizing: border-box;">${d.label.replace('\n', '<br>')}</div>`;
+                        }
+
                         return `
                             <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; height: 100%; text-align: center; padding: 0 10px; box-sizing: border-box;">
                                 <span style="font-size: 0.85em; margin-bottom: 2px;">What do you think of</span>
@@ -661,8 +725,6 @@
                     }
                     return d.label;
                 });
-
-            simulation.on("tick", () => {});
 
             if (!isTimerRunning) {
                 isTimerRunning = true;
@@ -701,7 +763,8 @@
             const text = document.getElementById("commentInput").value;
             if (!text) return alert("Please enter a comment.");
 
-            const newId = "node-" + Date.now();
+            // 💡 보너스: 0.001초 동시 클릭 버그를 방지하는 더욱 안전한 난수 ID 생성
+            const newId = "node-" + Date.now() + "-" + Math.random().toString(36).substr(2, 9);
             const newNode = { id: newId, label: text, color: "#ffffff", radius: 50, x: selectedNode.x + (Math.random() - 0.5) * 50, y: selectedNode.y + (Math.random() - 0.5) * 50, phase: Math.random() * Math.PI * 2 };
             const newLink = { source: selectedNode.id, target: newId };
 
@@ -722,19 +785,16 @@
         window.openDeleteModal = function(node) {
             nodeToDelete = node;
             document.getElementById("deleteModal").style.display = "flex";
-            document.getElementById("deletePasswordInput").focus();
         }
 
         window.closeDeleteModal = function() {
             document.getElementById("deleteModal").style.display = "none";
-            document.getElementById("deletePasswordInput").value = "";
             nodeToDelete = null;
         }
 
         window.submitDelete = async function() {
-            const pw = document.getElementById("deletePasswordInput").value;
-            if (pw !== "921102") {
-                alert("Incorrect password.");
+            if (!isAdmin) {
+                alert("Permission denied. Only admins can delete nodes.");
                 return;
             }
 
@@ -779,7 +839,6 @@
                 d.fx = event.x; d.fy = event.y; 
             }
             function dragended(event, d) { 
-                // 💡 배터리 최적화: 드래그가 끝나면 다시 0으로 돌려 물리연산 멈춤
                 if (!event.active) simulation.alphaTarget(0); 
                 d.fx = null; d.fy = null; 
             }
@@ -787,7 +846,6 @@
         }
 
         document.getElementById("commentInput").addEventListener("keyup", e => { if (e.key === "Enter") window.submitComment(); });
-        document.getElementById("deletePasswordInput").addEventListener("keyup", e => { if (e.key === "Enter") window.submitDelete(); });
     </script>
 </body>
 </html>
