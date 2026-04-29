@@ -60,13 +60,17 @@
             font-size: 1.15rem;
             font-weight: bold;
             font-family: 'Helvetica Neue', Arial, sans-serif;
-            color: #0095f6;
+            color: #000; /* 새로 입력하는 글자는 검은색(또는 진한 색) */
             width: 100%; 
             padding: 0 4px; 
             margin-left: 2px;
             outline: none;
             transition: border-color 0.3s;
             flex-grow: 1;
+        }
+        #navInput::placeholder {
+            color: #999; /* placeholder는 연한 회색으로 직관성 부여 */
+            font-weight: 500;
         }
         #navInput:focus { border-bottom: 2px solid #0095f6; }
 
@@ -177,7 +181,7 @@
             <p class="instruction-text">Click a node to add a comment.</p>
 
             <button id="dropdownToggle" class="dropdown-btn" onclick="toggleDropdown()">
-                Visit trees <span>▾</span>
+                Visit other commentrees <span>▾</span>
             </button>
             <div id="allHandlesList" class="handles-list-container hidden">
                 Loading...
@@ -224,13 +228,13 @@
         handle = decodeURIComponent(handle);
         if (!handle.startsWith("@")) handle = "@" + handle;
 
-        // --- 입력창에 현재 보고 있는 핸들 채워넣기 ---
+        // --- 💡핵심 수정: value 대신 placeholder에 현재 핸들 표시 ---
         const navInput = document.getElementById("navInput");
-        navInput.value = handle; // placeholder 대신 value에 직접 삽입
+        navInput.placeholder = handle; 
         
         window.navigateToHandle = function() {
             let val = navInput.value.trim();
-            if(!val) return;
+            if(!val) return; // 빈칸으로 엔터치면 아무 동작 안함 (현재 화면 유지)
             if(!val.startsWith('@')) val = '@' + val;
             window.location.href = "/" + val.toLowerCase();
         }
