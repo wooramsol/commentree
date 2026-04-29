@@ -8,7 +8,6 @@
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #f9f9f9; font-family: 'Helvetica Neue', Arial, sans-serif; }
         
-        /* 컴팩트해진 헤더 UI */
         header { 
             position: absolute; 
             top: 15px; 
@@ -34,10 +33,9 @@
             min-width: 260px; 
             max-width: 100%; 
             box-sizing: border-box; 
-            pointer-events: auto; /* 박스 내부만 클릭 가능하게 */
+            pointer-events: auto; 
         }
 
-        /* 1. 최상단 도메인 + 입력창 */
         .input-wrapper {
             display: flex;
             align-items: center;
@@ -60,7 +58,7 @@
             font-size: 1.15rem;
             font-weight: bold;
             font-family: 'Helvetica Neue', Arial, sans-serif;
-            color: #000; /* 새로 입력하는 글자는 검은색(또는 진한 색) */
+            color: #000; 
             width: 100%; 
             padding: 0 4px; 
             margin-left: 2px;
@@ -68,10 +66,7 @@
             transition: border-color 0.3s;
             flex-grow: 1;
         }
-        #navInput::placeholder {
-            color: #999; /* placeholder는 연한 회색으로 직관성 부여 */
-            font-weight: 500;
-        }
+        #navInput::placeholder { color: #999; font-weight: 500; }
         #navInput:focus { border-bottom: 2px solid #0095f6; }
 
         #goBtn {
@@ -86,7 +81,6 @@
         }
         #goBtn:hover { transform: translateX(3px); }
 
-        /* 2. 한 줄 설명 */
         .instruction-text {
             font-size: 0.85rem;
             color: #666;
@@ -94,7 +88,6 @@
             padding-left: 2px;
         }
 
-        /* 3. 드롭다운 트리 목록 */
         .dropdown-btn {
             background: #f0f0f0;
             border: none;
@@ -139,23 +132,13 @@
             display: block; 
             word-break: break-all;
         }
-        .handles-list-container a:hover {
-            background: #0095f6;
-            color: white;
-        }
+        .handles-list-container a:hover { background: #0095f6; color: white; }
 
         @media (max-width: 600px) {
-            header { 
-                left: 50%; 
-                transform: translateX(-50%); 
-                top: 15px; 
-                width: 96%; 
-                align-items: center; 
-            }
+            header { left: 50%; transform: translateX(-50%); top: 15px; width: 96%; align-items: center; }
             .nav-box { width: 100%; min-width: auto; }
         }
 
-        /* 모달 스타일 */
         #inputModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 100; justify-content: center; align-items: center; }
         .modal-content { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center; width: 85%; max-width: 320px; }
         input[type="text"].modal-input { width: 90%; padding: 12px; margin: 15px 0; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; box-sizing: border-box;} 
@@ -177,15 +160,11 @@
                 <input type="text" id="navInput" autocomplete="off">
                 <button id="goBtn" onclick="navigateToHandle()">→</button>
             </div>
-
             <p class="instruction-text">Click a node to add a comment.</p>
-
             <button id="dropdownToggle" class="dropdown-btn" onclick="toggleDropdown()">
                 Visit other commentrees <span>▾</span>
             </button>
-            <div id="allHandlesList" class="handles-list-container hidden">
-                Loading...
-            </div>
+            <div id="allHandlesList" class="handles-list-container hidden">Loading...</div>
         </div>
     </header>
 
@@ -196,8 +175,8 @@
             <h3>Leave a comment</h3>
             <input type="text" id="commentInput" class="modal-input" placeholder="Enter your comment" maxlength="50">
             <br>
-            <button class="modal-btn" onclick="submitComment()">Submit</button>
-            <button class="modal-btn" onclick="closeModal()" style="background:#999; margin-left: 5px;">Cancel</button>
+            <button class="modal-btn" onclick="closeModal()" style="background:#999; margin-right: 5px;">Cancel</button>
+            <button class="modal-btn" onclick="submitComment()">Post</button>
         </div>
     </div>
 
@@ -205,6 +184,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
         import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
+        // Firebase Setup
         const firebaseConfig = {
             apiKey: "AIzaSyD03P2MQJUUwTpkc2B6EGTrttPtb0JKbxU",
             authDomain: "commentree-87c10.firebaseapp.com",
@@ -214,70 +194,54 @@
             appId: "1:174582656984:web:e877e8161686731c878cad",
             measurementId: "G-9F4JTS1DV0"
         };
-
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- 현재 핸들 파싱 및 최초 랜딩 설정 ---
+        // URL Parsing & Handle Setup
         let handle = window.location.pathname.replace("/", "").toLowerCase(); 
         if (!handle) {
             handle = "@wooramsol"; 
             window.history.replaceState(null, "", "/" + handle);
         }
-
         handle = decodeURIComponent(handle);
         if (!handle.startsWith("@")) handle = "@" + handle;
 
-        // --- 💡핵심 수정: value 대신 placeholder에 현재 핸들 표시 ---
         const navInput = document.getElementById("navInput");
         navInput.placeholder = handle; 
         
         window.navigateToHandle = function() {
             let val = navInput.value.trim();
-            if(!val) return; // 빈칸으로 엔터치면 아무 동작 안함 (현재 화면 유지)
+            if(!val) return; 
             if(!val.startsWith('@')) val = '@' + val;
             window.location.href = "/" + val.toLowerCase();
         }
+        navInput.addEventListener("keyup", e => { if (e.key === "Enter") window.navigateToHandle(); });
 
-        navInput.addEventListener("keyup", function(event) {
-            if (event.key === "Enter") window.navigateToHandle();
-        });
-
-        // --- 드롭다운 토글 함수 ---
         window.toggleDropdown = function() {
             const list = document.getElementById("allHandlesList");
             const btnSpan = document.querySelector("#dropdownToggle span");
-            if (list.classList.contains("hidden")) {
-                list.classList.remove("hidden");
-                btnSpan.innerText = "▴";
-            } else {
-                list.classList.add("hidden");
-                btnSpan.innerText = "▾";
-            }
+            const isHidden = list.classList.toggle("hidden");
+            btnSpan.innerText = isHidden ? "▾" : "▴";
         }
 
-        // --- 전체 목록 불러오기 로직 ---
+        // Fetch Trees List
         async function fetchAllHandles() {
             try {
                 const querySnapshot = await getDocs(collection(db, "trees"));
-                let allHandles = [];
-                querySnapshot.forEach((doc) => {
-                    if (doc.id !== handle) {
-                        allHandles.push(doc.id);
-                    }
-                });
-
                 const listEl = document.getElementById("allHandlesList");
                 listEl.innerHTML = "";
+                
+                let allHandles = [];
+                querySnapshot.forEach(doc => {
+                    if (doc.id !== handle) allHandles.push(doc.id);
+                });
 
                 if (allHandles.length === 0) {
                     listEl.innerHTML = "<span style='font-size: 0.8rem; color:#999; padding: 4px;'>No other trees yet.</span>";
                     return;
                 }
 
-                allHandles.sort();
-
-                allHandles.forEach((h) => {
+                allHandles.sort().forEach(h => {
                     let displayHandle = h.startsWith('@') ? h : '@' + h;
                     const aTag = document.createElement('a');
                     aTag.href = "/" + h;
@@ -289,40 +253,33 @@
                 document.getElementById("allHandlesList").innerHTML = "Failed to load trees.";
             }
         }
-
         fetchAllHandles();
 
-        // --- D3.js 노드 시뮬레이션 ---
+        // Global state
         window.dataset = { nodes: [], links: [] };
         let selectedNode = null;
-        let docRef = doc(db, "trees", handle); 
-        
         let width = window.innerWidth;
         let height = window.innerHeight;
 
-        function getRootLabel() {
-            return `What do you think of her/him?`;
-        }
+        const docRef = doc(db, "trees", handle); 
 
+        // Snapshot Listener
         onSnapshot(docRef, (docSnap) => {
             if (docSnap.exists()) {
                 const data = docSnap.data();
-                const nodes = data.nodes.map(d => ({...d}));
-                window.dataset = {
-                    nodes: nodes,
-                    links: data.links.map(d => ({...d}))
-                };
+                const nodes = data.nodes.map((d, index) => {
+                    let node = {...d};
+                    if (node.id === "root") {
+                        node.color = "#ffffff"; 
+                        node.label = `What do you think of ${handle}?`;
+                    }
+                    return node;
+                });
+
+                window.dataset = { nodes, links: data.links.map(d => ({...d})) };
             } else {
                 const initialData = {
-                    nodes: [{ 
-                        id: "root", 
-                        label: getRootLabel(), 
-                        color: "#000000", 
-                        radius: 70, 
-                        x: width / 2, 
-                        y: height / 2, 
-                        phase: Math.random() * Math.PI * 2 
-                    }],
+                    nodes: [{ id: "root", label: `What do you think of ${handle}?`, color: "#ffffff", radius: 70, x: width / 2, y: height / 2, phase: Math.random() * Math.PI * 2 }],
                     links: []
                 };
                 setDoc(docRef, initialData); 
@@ -331,11 +288,9 @@
             restartSimulation(); 
         });
 
-        const svg = d3.select("#chart").append("svg")
-            .attr("width", width).attr("height", height);
-
-        const zoom = d3.zoom().on("zoom", (event) => g.attr("transform", event.transform));
-        
+        // D3 Initialization
+        const svg = d3.select("#chart").append("svg").attr("width", width).attr("height", height);
+        const zoom = d3.zoom().on("zoom", event => g.attr("transform", event.transform));
         svg.call(zoom).on("dblclick.zoom", null); 
 
         const g = svg.append("g");
@@ -360,7 +315,6 @@
             simulation.force("link").links(window.dataset.links);
             update();
             simulation.alpha(1).restart();
-
             setTimeout(zoomToFit, 300);
         }
 
@@ -371,31 +325,19 @@
             let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
             nodes.forEach(d => {
                 if (d.x === undefined || d.y === undefined) return;
-                minX = Math.min(minX, d.x - d.radius);
-                maxX = Math.max(maxX, d.x + d.radius);
-                minY = Math.min(minY, d.y - d.radius);
-                maxY = Math.max(maxY, d.y + d.radius);
+                minX = Math.min(minX, d.x - d.radius); maxX = Math.max(maxX, d.x + d.radius);
+                minY = Math.min(minY, d.y - d.radius); maxY = Math.max(maxY, d.y + d.radius);
             });
-
             if (minX === Infinity) return; 
 
-            const contentWidth = maxX - minX;
-            const contentHeight = maxY - minY;
+            const contentW = maxX - minX;
+            const contentH = maxY - minY;
             const midX = (minX + maxX) / 2;
             const midY = (minY + maxY) / 2;
+            if (contentW === 0 || contentH === 0) return;
 
-            if (contentWidth === 0 || contentHeight === 0) return;
-
-            const scale = 0.85 / Math.max(contentWidth / width, contentHeight / height);
-            
-            svg.transition()
-                .duration(1200) 
-                .call(
-                    zoom.transform,
-                    d3.zoomIdentity
-                        .translate(width / 2 - scale * midX, height / 2 - scale * midY)
-                        .scale(scale)
-                );
+            const scale = 0.85 / Math.max(contentW / width, contentH / height);
+            svg.transition().duration(1200).call(zoom.transform, d3.zoomIdentity.translate(width / 2 - scale * midX, height / 2 - scale * midY).scale(scale));
         }
 
         window.addEventListener('resize', () => {
@@ -406,66 +348,86 @@
             simulation.alpha(0.3).restart();
         });
 
+        // 💡 D3 렌더링 최적화: remove/append 반복을 버리고 join()과 select()로 재사용 업데이트
         function update() {
+            // Links Update
             const link = linkLayer.selectAll(".link")
-                .data(window.dataset.links)
+                .data(window.dataset.links, d => (d.source.id || d.source) + "-" + (d.target.id || d.target))
                 .join("line")
                 .attr("class", "link")
-                .attr("stroke", "#bbb").attr("stroke-width", 2);
+                .attr("stroke", "#000000") // 선 색상 검정색
+                .attr("stroke-width", 2);
 
+            // Nodes Update (Enter, Update, Exit)
             const node = nodeLayer.selectAll(".node")
                 .data(window.dataset.nodes, d => d.id)
-                .join("g")
-                .attr("class", "node")
-                .call(drag(simulation));
+                .join(
+                    enter => {
+                        const g = enter.append("g").attr("class", "node").call(drag(simulation));
+                        // 초기 생성 시에만 태그를 붙임 (성능 향상)
+                        g.append("circle")
+                            .attr("stroke", "#000")
+                            .attr("stroke-width", 2) // 루트 노드도 모두 2px로 통일
+                            .style("cursor", "pointer")
+                            .style("filter", "drop-shadow(0px 3px 3px rgba(0,0,0,0.1))")
+                            .on("click", (event, d) => { event.stopPropagation(); openModal(d); });
+                            
+                        g.append("foreignObject")
+                            .style("pointer-events", "none") 
+                            .append("xhtml:div")
+                            .attr("class", "bubble-text");
+                        return g;
+                    }
+                );
 
-            node.selectAll("circle").remove();
-            node.append("circle")
+            // 속성 업데이트 (새 노드 + 기존 노드 모두 적용)
+            node.select("circle")
                 .attr("r", d => d.radius)
-                .attr("fill", d => d.color) 
-                .attr("stroke", "#000").attr("stroke-width", 2)
-                .style("cursor", "pointer")
-                .style("filter", "drop-shadow(0px 3px 3px rgba(0,0,0,0.1))")
-                .on("click", (event, d) => {
-                    event.stopPropagation();
-                    openModal(d);
-                });
+                .attr("fill", d => d.id === "root" ? "#ffffff" : d.color);
 
-            node.selectAll("foreignObject").remove();
-            node.append("foreignObject")
-                .attr("width", d => d.radius * 1.45) 
-                .attr("height", d => d.radius * 1.45)
-                .attr("x", d => -d.radius * 0.725).attr("y", d => -d.radius * 0.725)
-                .style("pointer-events", "none") 
-                .append("xhtml:div")
-                .attr("class", "bubble-text")
-                .style("color", d => d.color === "#000000" ? "#fff" : "#000")
+            node.select("foreignObject")
+                .attr("width", d => d.id === "root" ? d.radius * 3.5 : d.radius * 1.45) 
+                .attr("height", d => d.id === "root" ? d.radius * 3.5 : d.radius * 1.45)
+                .attr("x", d => d.id === "root" ? -d.radius * 1.75 : -d.radius * 0.725)
+                .attr("y", d => d.id === "root" ? -d.radius * 1.75 : -d.radius * 0.725);
+
+            node.select(".bubble-text")
+                .style("color", "#000")
                 .style("font-weight", "bold")
                 .style("font-size", d => {
                     const len = d.label.length;
-                    let divider = 3.5; 
-                    if (len < 8) divider = 2.5;       
-                    else if (len < 15) divider = 3.2; 
-                    else if (len < 25) divider = 4.0; 
-                    else divider = 5.0;               
+                    let divider = len < 8 ? 2.5 : len < 15 ? 3.2 : len < 25 ? 4.0 : 5.0;               
                     return Math.max(10, d.radius / divider) + "px";
                 })
-                .html(d => d.label);
+                .html(d => {
+                    // 무조건 ID 기반 하이퍼링크 변환
+                    if (d.id === "root") {
+                        const cleanH = handle.replace("@", "");
+                        return `
+                            <div style="line-height: 1.4; font-size: 0.9em; text-align: center;">
+                                What do you think of<br>
+                                <a href="https://www.instagram.com/${cleanH}/" target="_blank" 
+                                   style="color: #0000EE; text-decoration: underline; pointer-events: auto; word-break: break-all;"
+                                   onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="event.stopPropagation()">
+                                    ${handle}
+                                </a>?
+                            </div>
+                        `;
+                    }
+                    return d.label;
+                });
 
+            // 시뮬레이션 틱
             simulation.on("tick", () => {
                 const time = Date.now() / 1000; 
                 node.attr("transform", d => {
-                    if(!d.x) d.x = width/2; 
-                    if(!d.y) d.y = height/2;
-                    const floatingY = Math.sin(time * 2 + (d.phase||0)) * 3; 
-                    d.displayY = d.y + floatingY; 
+                    if(!d.x) d.x = width/2; if(!d.y) d.y = height/2;
+                    d.displayY = d.y + (Math.sin(time * 2 + (d.phase||0)) * 3); 
                     return `translate(${d.x}, ${d.displayY})`;
                 });
                 link
-                    .attr("x1", d => d.source.x)
-                    .attr("y1", d => d.source.displayY || d.source.y) 
-                    .attr("x2", d => d.target.x)
-                    .attr("y2", d => d.target.displayY || d.target.y);
+                    .attr("x1", d => d.source.x).attr("y1", d => d.source.displayY || d.source.y) 
+                    .attr("x2", d => d.target.x).attr("y2", d => d.target.displayY || d.target.y);
             });
         }
 
@@ -486,65 +448,31 @@
             if (!text) return alert("Please enter a comment.");
 
             const newId = "node-" + Date.now();
-            
-            const newNode = {
-                id: newId,
-                label: text,
-                color: "#ffffff",
-                radius: 50, 
-                x: selectedNode.x + (Math.random() - 0.5) * 50,
-                y: selectedNode.y + (Math.random() - 0.5) * 50,
-                phase: Math.random() * Math.PI * 2
-            };
-
+            const newNode = { id: newId, label: text, color: "#ffffff", radius: 50, x: selectedNode.x + (Math.random() - 0.5) * 50, y: selectedNode.y + (Math.random() - 0.5) * 50, phase: Math.random() * Math.PI * 2 };
             const newLink = { source: selectedNode.id, target: newId };
 
             window.dataset.nodes.push(newNode);
             window.dataset.links.push(newLink);
             
             const parentNode = window.dataset.nodes.find(n => n.id === selectedNode.id);
-            if (parentNode && parentNode.radius < 200) {
-                parentNode.radius += 8;
-            }
+            if (parentNode && parentNode.radius < 200) parentNode.radius += 8;
 
             window.closeModal();
 
-            const saveNodes = window.dataset.nodes.map(n => {
-                return {
-                    id: n.id, label: n.label, color: n.color, radius: n.radius,
-                    x: n.x, y: n.y, phase: n.phase
-                };
-            });
-            
-            const saveLinks = window.dataset.links.map(l => {
-                return { 
-                    source: (typeof l.source === 'object') ? l.source.id : l.source,
-                    target: (typeof l.target === 'object') ? l.target.id : l.target
-                };
-            });
+            const saveNodes = window.dataset.nodes.map(n => ({ id: n.id, label: n.label, color: n.color, radius: n.radius, x: n.x, y: n.y, phase: n.phase }));
+            const saveLinks = window.dataset.links.map(l => ({ source: l.source.id || l.source, target: l.target.id || l.target }));
 
-            await updateDoc(docRef, {
-                nodes: saveNodes,
-                links: saveLinks
-            });
+            await updateDoc(docRef, { nodes: saveNodes, links: saveLinks });
         }
 
         function drag(simulation) {
-            function dragstarted(event, d) {
-                if (!event.active) simulation.alphaTarget(0.3).restart();
-                d.fx = d.x; d.fy = d.y;
-            }
+            function dragstarted(event, d) { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }
             function dragged(event, d) { d.fx = event.x; d.fy = event.y; }
-            function dragended(event, d) {
-                if (!event.active) simulation.alphaTarget(0);
-                d.fx = null; d.fy = null;
-            }
+            function dragended(event, d) { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }
             return d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended);
         }
 
-        document.getElementById("commentInput").addEventListener("keyup", function(event) {
-            if (event.key === "Enter") window.submitComment();
-        });
+        document.getElementById("commentInput").addEventListener("keyup", e => { if (e.key === "Enter") window.submitComment(); });
     </script>
 </body>
 </html>
