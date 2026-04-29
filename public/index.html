@@ -149,11 +149,11 @@
         .nav-divider {
             height: 1px;
             background-color: #ddd;
-            margin: 6px 0; 
+            margin: 6px 0 8px 0; 
             width: 100%;
         }
 
-        /* --- 생성된 전체 트리 목록 스타일 --- */
+        /* --- 생성된 전체 트리 목록 스타일 (세로 리스트 & 5명 높이 제한) --- */
         .recommend-section {
             display: flex;
             flex-direction: column;
@@ -169,9 +169,10 @@
 
         .handles-list-container {
             display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            max-height: 100px; /* 공간을 너무 차지하지 않게 스크롤 적용 */
+            flex-direction: column; /* 세로 정렬 */
+            gap: 4px;
+            /* 항복 하나의 높이가 대략 28px, 5개면 140px 내외 */
+            max-height: 140px; 
             overflow-y: auto;
             padding-right: 4px; /* 스크롤바 여백 */
         }
@@ -181,14 +182,18 @@
         .handles-list-container::-webkit-scrollbar-thumb { background-color: #ccc; border-radius: 4px; }
 
         .handles-list-container a {
-            background: rgba(0, 149, 246, 0.1);
-            color: #0095f6;
+            background: rgba(0, 149, 246, 0.05);
+            color: #333;
             text-decoration: none;
-            padding: 4px 10px;
-            border-radius: 15px;
-            font-size: 0.8rem;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 0.85rem;
             font-weight: 500;
             transition: background 0.2s, color 0.2s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block; /* 줄바꿈 꽉 차게 */
         }
         .handles-list-container a:hover {
             background: #0095f6;
@@ -209,7 +214,6 @@
             .nav-container { align-items: center; }
             .nav-label { padding-left: 0; }
             .nav-box { min-width: auto; width: 98%; }
-            .handles-list-container { justify-content: center; }
         }
 
         #inputModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 100; justify-content: center; align-items: center; }
@@ -319,7 +323,7 @@
                 const querySnapshot = await getDocs(collection(db, "trees"));
                 let allHandles = [];
                 querySnapshot.forEach((doc) => {
-                    // 현재 보고 있는 계정은 목록에서 제외하려면: if (doc.id !== handle) 추가
+                    // 현재 보고 있는 계정은 목록에서 제외
                     if (doc.id !== handle) {
                         allHandles.push(doc.id);
                     }
@@ -329,7 +333,7 @@
                 listEl.innerHTML = "";
 
                 if (allHandles.length === 0) {
-                    listEl.innerHTML = "<span style='font-size: 0.8rem; color:#999;'>No other trees yet.</span>";
+                    listEl.innerHTML = "<span style='font-size: 0.8rem; color:#999; padding: 4px;'>No other trees yet.</span>";
                     return;
                 }
 
