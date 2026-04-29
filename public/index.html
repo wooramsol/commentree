@@ -71,14 +71,6 @@
             max-width: 100%;
         }
 
-        .nav-label {
-            margin: 0;
-            font-size: 0.9rem;
-            color: #444;
-            font-weight: bold;
-            padding-left: 2px; 
-        }
-
         .nav-box {
             background: rgba(255, 255, 255, 0.85); 
             padding: 4px 12px 6px 12px; 
@@ -153,7 +145,6 @@
             width: 100%;
         }
 
-        /* --- 생성된 전체 트리 목록 스타일 (세로 리스트 & 5명 높이 제한) --- */
         .recommend-section {
             display: flex;
             flex-direction: column;
@@ -169,15 +160,13 @@
 
         .handles-list-container {
             display: flex;
-            flex-direction: column; /* 세로 정렬 */
+            flex-direction: column; 
             gap: 4px;
-            /* 항복 하나의 높이가 대략 28px, 5개면 140px 내외 */
             max-height: 140px; 
             overflow-y: auto;
-            padding-right: 4px; /* 스크롤바 여백 */
+            padding-right: 4px; 
         }
         
-        /* 스크롤바 디자인 */
         .handles-list-container::-webkit-scrollbar { width: 4px; }
         .handles-list-container::-webkit-scrollbar-thumb { background-color: #ccc; border-radius: 4px; }
 
@@ -190,10 +179,8 @@
             font-size: 0.85rem;
             font-weight: 500;
             transition: background 0.2s, color 0.2s;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            display: block; /* 줄바꿈 꽉 차게 */
+            display: block; 
+            word-break: break-all;
         }
         .handles-list-container a:hover {
             background: #0095f6;
@@ -212,7 +199,6 @@
             h1 { font-size: 1.4rem; }
             
             .nav-container { align-items: center; }
-            .nav-label { padding-left: 0; }
             .nav-box { min-width: auto; width: 98%; }
         }
 
@@ -240,8 +226,6 @@
         </p>
         
         <div class="nav-container">
-            <p class="nav-label">Visit another account?</p>
-            
             <div class="nav-box">
                 <div class="input-wrapper">
                     <span class="domain-text">commentree.net/</span>
@@ -290,9 +274,10 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
+        // --- 최초 랜딩 핸들 설정 ---
         let handle = window.location.pathname.replace("/", "").toLowerCase(); 
         if (!handle) {
-            handle = "@realdonaldtrump";
+            handle = "@wooramsol"; // @realdonaldtrump에서 @wooramsol로 변경
             window.history.replaceState(null, "", "/" + handle);
         }
 
@@ -317,13 +302,11 @@
             if (event.key === "Enter") window.navigateToHandle();
         });
 
-        // --- 전체 목록 불러오기 로직 ---
         async function fetchAllHandles() {
             try {
                 const querySnapshot = await getDocs(collection(db, "trees"));
                 let allHandles = [];
                 querySnapshot.forEach((doc) => {
-                    // 현재 보고 있는 계정은 목록에서 제외
                     if (doc.id !== handle) {
                         allHandles.push(doc.id);
                     }
@@ -337,7 +320,6 @@
                     return;
                 }
 
-                // 알파벳 순으로 정렬
                 allHandles.sort();
 
                 allHandles.forEach((h) => {
@@ -354,7 +336,6 @@
         }
 
         fetchAllHandles();
-        // ---------------------------------
 
         window.dataset = { nodes: [], links: [] };
         let selectedNode = null;
@@ -443,7 +424,6 @@
 
             if (minX === Infinity) return; 
 
-            const padding = 60; 
             const contentWidth = maxX - minX;
             const contentHeight = maxY - minY;
             const midX = (minX + maxX) / 2;
