@@ -190,18 +190,18 @@
         function getRootHandleLayout(d) {
             const r = d.radius;
             const fo = 2.2 * r;
-            const padX = fo * 0.10;
-            const padY = fo * 0.14;
-            const gap = Math.max(4, Math.round(r * 0.07));
-            const iconPx = Math.min(30, Math.max(17, r * 0.4));
-            const innerW = Math.max(32, fo - 2 * padX - gap - iconPx);
-            const innerH = Math.max(18, fo - 2 * padY);
+            const padX = fo * 0.06;
+            const padY = fo * 0.09;
+            const gap = 2;
+            const iconPx = Math.min(26, Math.max(14, r * 0.34));
+            const innerW = Math.max(28, fo - 2 * padX - gap - iconPx);
+            const innerH = Math.max(16, fo - 2 * padY);
             const n = Math.max(String(handle).length, 1);
-            const maxByW = innerW / (n * 0.58);
-            const maxByH = innerH / 1.1;
-            const maxFs = Math.max(11, Math.min(maxByW, maxByH, r * 0.88));
-            const normal = maxFs * 0.9;
-            const hover = Math.min(maxFs, normal * 1.1);
+            const maxByW = innerW / (n * 0.5);
+            const maxByH = innerH / 1.04;
+            const maxFs = Math.max(12, Math.min(maxByW, maxByH, r * 0.96));
+            const normal = maxFs * 0.99;
+            const hover = Math.min(maxFs, normal * 1.06);
             return { normal, hover, maxFs, iconPx, gap };
         }
 
@@ -335,7 +335,7 @@
                     const { normal, iconPx, gap } = getRootHandleLayout(d);
                     const igUser = encodeURIComponent(handle.replace("@", ""));
                     const igHref = `https://www.instagram.com/${igUser}/`;
-                    return `<div class="root-bubble-wrap" style="width:100%;height:100%;display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:center;gap:${gap}px;pointer-events:none;box-sizing:border-box;padding:7% 5%;"><span class="root-handle-line" style="flex:1 1 auto;text-align:center;font-weight:900;color:var(--accent);line-height:1.05;letter-spacing:-0.02em;font-size:${normal}px;transition:font-size 0.2s;text-shadow:0 0 0.08em rgba(255,255,255,0.95),0 0 0.12em rgba(255,255,255,0.7);">${escapeHtml(handle)}</span><a class="root-social-link root-inline-ext" href="${igHref}" target="_blank" rel="noopener noreferrer" aria-label="Open Instagram" style="pointer-events:auto;flex-shrink:0;" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="event.stopPropagation()">${rootExtSvg(iconPx)}</a></div>`;
+                    return `<div class="root-bubble-wrap" style="width:100%;height:100%;display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:center;gap:${gap}px;pointer-events:none;box-sizing:border-box;padding:5% 3.5%;"><span class="root-handle-line" style="flex:0 1 auto;min-width:0;max-width:calc(100% - ${iconPx + gap}px);text-align:right;font-weight:900;color:var(--accent);line-height:1.05;letter-spacing:-0.02em;font-size:${normal}px;transition:font-size 0.2s;text-shadow:0 0 0.08em rgba(255,255,255,0.95),0 0 0.12em rgba(255,255,255,0.7);">${escapeHtml(handle)}</span><a class="root-social-link root-inline-ext" href="${igHref}" target="_blank" rel="noopener noreferrer" aria-label="Open Instagram" style="pointer-events:auto;flex-shrink:0;" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="event.stopPropagation()">${rootExtSvg(iconPx)}</a></div>`;
                 }
                 return `<div style="padding:12%; width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:${Math.max(11, d.radius/4.2)}px; pointer-events:none; transition: font-size 0.2s;">${escapeHtml(d.label)}</div>`;
             });
