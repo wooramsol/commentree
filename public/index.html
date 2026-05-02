@@ -284,10 +284,10 @@
             const t = n / NODE_CHILDREN_FOR_MAX_SCALE;
             return baseRadius * (1 + (NODE_RADIUS_MAX_SCALE - 1) * t);
         }
-        /** 0 replies → 50% opacity; 100+ replies → 100% (linear). Applies to whole node (circle + text). */
-        function nodeOpacityFromDirectChildren(childCount) {
+        /** Text only: 0 replies → 70%; 100+ replies → 100%. Circle/stroke stay opaque. */
+        function nodeTextOpacityFromDirectChildren(childCount) {
             const n = Math.min(Math.max(childCount, 0), NODE_CHILDREN_FOR_MAX_SCALE);
-            return 0.5 + 0.5 * (n / NODE_CHILDREN_FOR_MAX_SCALE);
+            return 0.7 + 0.3 * (n / NODE_CHILDREN_FOR_MAX_SCALE);
         }
         function normalizeNodeRadii(nodes, links) {
             return nodes.map(n => {
@@ -602,7 +602,6 @@
                 core.append("foreignObject").append("xhtml:div").attr("class", "bubble-text");
                 return nodeG;
             });
-            node.style("opacity", d => nodeOpacityFromDirectChildren(directChildCount(d.id, dataset.links)));
             node.each(function() {
                 const g = d3.select(this);
                 if (g.select(".node-core").empty()) {
@@ -624,6 +623,7 @@
                 if (gl.empty()) gl = core.append("g").attr("class", "ios-root-label");
                 renderIosRootLabel(gl, d);
             });
+            node.filter(d => d.id === "root" && useIosRoot).select(".node-core g.ios-root-label").style("opacity", 1);
             node.select(".node-core circle").attr("r", d => d.radius).attr("fill", d => d.color);
             const foBacked = node.filter(d => !(d.id === "root" && useIosRoot));
             foBacked.select(".node-core foreignObject")
@@ -652,6 +652,10 @@
                 }
                 const fontPx = nodeCommentFontPx(d.radius, d.label);
                 return `<div class="node-label-inner" style="padding:12%; width:100%; height:100%; box-sizing:border-box; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:${fontPx}px; pointer-events:none;">${escapeHtml(d.label)}</div>`;
+            });
+            foBacked.select(".bubble-text").style("opacity", d => {
+                if (d.id === "root") return 1;
+                return nodeTextOpacityFromDirectChildren(directChildCount(d.id, dataset.links));
             });
 
             node.selectAll("g.root-ig-icons").remove();
