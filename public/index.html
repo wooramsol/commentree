@@ -18,7 +18,7 @@
         }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #f9f9f9; font-family: 'Helvetica Neue', Arial, sans-serif; -webkit-user-select: none; user-select: none; touch-action: none; overscroll-behavior: none; }
         header { position: absolute; top: 15px; left: 15px; z-index: 10; pointer-events: none; display: flex; flex-direction: column; align-items: flex-start; max-width: 96%; }
-        .nav-box { background: rgba(255, 255, 255, 0.9); padding: 10px 14px; border-radius: 12px; backdrop-filter: blur(5px); box-shadow: 0 4px 15px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 8px; width: 380px; max-width: 100%; box-sizing: border-box; pointer-events: auto; }
+        .nav-box { position: relative; z-index: 2; background: rgba(255, 255, 255, 0.9); padding: 10px 14px; border-radius: 12px; backdrop-filter: blur(5px); box-shadow: 0 4px 15px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 8px; width: 380px; max-width: 100%; box-sizing: border-box; pointer-events: auto; }
         .input-wrapper { display: flex; align-items: center; width: 100%; justify-content: space-between; position: relative; }
         .domain-text { font-weight: 800; color: #000; font-size: 1.05rem; letter-spacing: -0.5px; white-space: nowrap; }
         #navInput { border: none; border-bottom: 2px solid #ddd; background: transparent; font-size: 1.05rem; font-weight: bold; color: #000; width: 100%; padding: 0 4px; margin: 0 6px 0 2px; outline: none; transition: border-color 0.3s; flex-grow: 1; -webkit-user-select: text; user-select: text; }
@@ -68,28 +68,35 @@
         .pulse-node circle { animation: heartbeat 1.5s ease-in-out infinite; }
         .zoom-controls { position: fixed; bottom: 25px; right: 25px; display: flex; flex-direction: column; gap: 8px; z-index: 10; pointer-events: auto; }
         .zoom-controls button { width: 50px; height: 50px; background: white; border: 1px solid #ddd; border-radius: 15px; font-size: 1.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        @media (max-width: 600px) { header { left: 50%; transform: translateX(-50%); top: 15px; width: 96%; align-items: center; } .nav-box { width: 100%; } }
         .chart-hint {
-            position: fixed;
-            left: 50%;
-            transform: translateX(-50%);
-            top: clamp(130px, 20vh, 200px);
-            z-index: 5;
-            pointer-events: none;
-            max-width: min(92vw, 420px);
+            position: relative;
+            z-index: 0;
+            width: 380px;
+            max-width: 100%;
+            margin: 10px 0 0 0;
+            padding: 0 6px;
+            box-sizing: border-box;
             text-align: center;
-            font-size: 0.95rem;
+            font-size: clamp(0.62rem, 2.6vw, 0.9rem);
             font-weight: 700;
             color: var(--accent);
-            text-shadow: 0 0 12px #f9f9f9, 0 0 8px #f9f9f9, 0 1px 2px rgba(0,0,0,0.15);
-            line-height: 1.35;
+            line-height: 1.25;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            pointer-events: none;
             animation: chartHintPulse 2.5s ease-in-out infinite;
+            text-shadow: 0 0 10px #f9f9f9, 0 1px 2px rgba(0,0,0,0.08);
         }
         @keyframes chartHintPulse {
             0%, 100% { opacity: 0.28; }
             50% { opacity: 1; }
         }
-        @media (max-width: 600px) { .chart-hint { font-size: 0.82rem; top: clamp(200px, 28vh, 260px); } }
+        @media (max-width: 600px) {
+            header { left: 50%; transform: translateX(-50%); top: 15px; width: 96%; align-items: center; }
+            .nav-box { width: 100%; }
+            .chart-hint { width: 100%; padding: 0 2px; font-size: clamp(0.58rem, 3.4vw, 0.82rem); }
+        }
     </style>
 </head>
 <body>
@@ -108,8 +115,8 @@
             </button>
             <div id="allHandlesList" class="handles-list-container hidden"></div>
         </div>
+        <p class="chart-hint" aria-live="polite">Click any node to add a comment.</p>
     </header>
-    <p class="chart-hint" aria-live="polite">Click any node to add a comment.</p>
     <div id="chart"></div>
     <div class="zoom-controls"><button id="zoomInBtn">+</button><button id="zoomOutBtn">−</button></div>
 
