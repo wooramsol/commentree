@@ -41,6 +41,7 @@
         .active-item { background-color: var(--accent-tint) !important; color: var(--accent) !important; border-left: 4px solid var(--accent) !important; font-weight: 800 !important; }
         .dragging, .dragging * { cursor: grabbing !important; }
         .node { cursor: cell; pointer-events: all; }
+        /* iOS Safari: translate+scale on same g as foreignObject can detach HTML — scale lives on .node-core only */
         #tooltip { position: absolute; display: none; background: rgba(0,0,0,0.8); color: #fff; padding: 6px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; pointer-events: none; z-index: 1000; white-space: nowrap; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
         #inputModal, #deleteModal, #deleteTreeModal, #adminModal, #logoutModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); z-index: 100; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
         .modal-content { background: rgba(255, 255, 255, 0.98); padding: 20px; border-radius: 20px; box-shadow: 0 25px 50px rgba(0,0,0,0.2); width: 92%; max-width: 400px; text-align: left; }
@@ -358,12 +359,25 @@
                     .on("click", (event, d) => { if (event.defaultPrevented) return; event.stopPropagation(); openModal(d); })
                     .on("contextmenu", (event, d) => { event.preventDefault(); if (!isAdmin) return; if (d.id === "root") { openDeleteTreeModal(handle); return; } openDeleteModal(d); })
                     .call(d3.drag().on("start", function(e, d) { if (!e.active) simulation.alphaTarget(0.2).restart(); d.fx = d.x; d.fy = d.y; d3.select(this).classed("dragging", true); tooltip.style("display", "none"); }).on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; }).on("end", function(e, d) { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; d3.select(this).classed("dragging", false); }));
-                nodeG.append("circle").attr("stroke", "#000").attr("stroke-width", 2);
-                nodeG.append("foreignObject").append("xhtml:div").attr("class", "bubble-text");
+                const core = nodeG.append("g").attr("class", "node-core");
+                core.append("circle").attr("stroke", "#000").attr("stroke-width", 2);
+                core.append("foreignObject").append("xhtml:div").attr("class", "bubble-text");
                 return nodeG;
             });
-            node.select("circle").attr("r", d => d.radius).attr("fill", d => d.color);
-            node.select("foreignObject")
+            node.each(function() {
+                const g = d3.select(this);
+                if (g.select(".node-core").empty()) {
+                    const c = g.select("circle");
+                    const fo = g.select("foreignObject");
+                    if (!c.empty() && !fo.empty()) {
+                        const core = g.append("g").attr("class", "node-core");
+                        core.node().appendChild(c.node());
+                        core.node().appendChild(fo.node());
+                    }
+                }
+            });
+            node.select(".node-core circle").attr("r", d => d.radius).attr("fill", d => d.color);
+            node.select(".node-core foreignObject")
                 .attr("width", d => d.radius * 2.2)
                 .attr("height", d => d.radius * 2.2)
                 .attr("x", d => -d.radius * 1.1)
@@ -406,9 +420,12 @@
                         let ty = (d.fy !== null && d.fy !== undefined) ? d.fy : d.y; 
                         d.displayX = tx + (Math.cos(t * 2.5 + (d.phase||0)) * 5); 
                         d.displayY = ty + (Math.sin(t * 3.0 + (d.phase||0)) * 8); 
-                        const s = typeof d._hoverScale === "number" ? d._hoverScale : 1;
-                        return `translate(${d.displayX}, ${d.displayY}) scale(${s})`; 
+                        return `translate(${d.displayX}, ${d.displayY})`; 
                     }); 
+                    nodeLayer.selectAll(".node-core").attr("transform", d => {
+                        const s = typeof d._hoverScale === "number" ? d._hoverScale : 1;
+                        return `scale(${s})`;
+                    });
                     linkLayer.selectAll("line").attr("x1", d => d.source.displayX || d.source.x).attr("y1", d => d.source.displayY || d.source.y).attr("x2", d => d.target.displayX || d.target.x).attr("y2", d => d.target.displayY || d.target.y); 
                 });
             }
