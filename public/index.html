@@ -284,10 +284,9 @@
             const t = n / NODE_CHILDREN_FOR_MAX_SCALE;
             return baseRadius * (1 + (NODE_RADIUS_MAX_SCALE - 1) * t);
         }
-        /** Text only: 0 replies → 70%; 100+ replies → 100%. Circle/stroke stay opaque. */
+        /** Text only: no direct child → 80%; one or more → 100%. Circle/stroke stay opaque. */
         function nodeTextOpacityFromDirectChildren(childCount) {
-            const n = Math.min(Math.max(childCount, 0), NODE_CHILDREN_FOR_MAX_SCALE);
-            return 0.7 + 0.3 * (n / NODE_CHILDREN_FOR_MAX_SCALE);
+            return childCount > 0 ? 1 : 0.8;
         }
         function normalizeNodeRadii(nodes, links) {
             return nodes.map(n => {
@@ -622,8 +621,8 @@
                 let gl = core.select("g.ios-root-label");
                 if (gl.empty()) gl = core.append("g").attr("class", "ios-root-label");
                 renderIosRootLabel(gl, d);
+                core.select("g.ios-root-label").style("opacity", nodeTextOpacityFromDirectChildren(directChildCount(d.id, dataset.links)));
             });
-            node.filter(d => d.id === "root" && useIosRoot).select(".node-core g.ios-root-label").style("opacity", 1);
             node.select(".node-core circle").attr("r", d => d.radius).attr("fill", d => d.color);
             const foBacked = node.filter(d => !(d.id === "root" && useIosRoot));
             foBacked.select(".node-core foreignObject")
@@ -653,10 +652,7 @@
                 const fontPx = nodeCommentFontPx(d.radius, d.label);
                 return `<div class="node-label-inner" style="padding:12%; width:100%; height:100%; box-sizing:border-box; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:${fontPx}px; pointer-events:none;">${escapeHtml(d.label)}</div>`;
             });
-            foBacked.select(".bubble-text").style("opacity", d => {
-                if (d.id === "root") return 1;
-                return nodeTextOpacityFromDirectChildren(directChildCount(d.id, dataset.links));
-            });
+            foBacked.select(".bubble-text").style("opacity", d => nodeTextOpacityFromDirectChildren(directChildCount(d.id, dataset.links)));
 
             node.selectAll("g.root-ig-icons").remove();
 
