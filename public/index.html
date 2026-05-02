@@ -269,8 +269,32 @@
             return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
         }
         const HANDLE_FONT_PX = 17;
-        /** Fits long comments inside the node circle (FO padding + up to 2 lines). */
-        function nodeCommentFontPx(radius, label) {
+        const NODE_BASE_RADIUS_ROOT = 65;
+        const NODE_BASE_RADIUS_COMMENT = 55;
+        const NODE_CHILDREN_FOR_MAX_SCALE = 1000;
+        const NODE_RADIUS_MAX_SCALE = 10;
+        function linkEndpointId(end) {
+            return typeof end === "object" && end != null && end.id != null ? end.id : end;
+        }
+        function directChildCount(nodeId, links) {
+            return links.filter(l => linkEndpointId(l.source) === nodeId).length;
+        }
+        function radiusFromBaseAndDirectChildren(baseRadius, childCount) {
+            const n = Math.min(Math.max(childCount, 0), NODE_CHILDREN_FOR_MAX_SCALE);
+            const t = n / NODE_CHILDREN_FOR_MAX_SCALE;
+            return baseRadius * (1 + (NODE_RADIUS_MAX_SCALE - 1) * t);
+        }
+        function normalizeNodeRadii(nodes, links) {
+            return nodes.map(n => {
+                const baseR = typeof n.baseRadius === "number" && n.baseRadius > 0
+                    ? n.baseRadius
+                    : (n.id === "root" ? NODE_BASE_RADIUS_ROOT : NODE_BASE_RADIUS_COMMENT);
+                const cnt = directChildCount(n.id, links);
+                return { ...n, baseRadius: baseR, radius: radiusFromBaseAndDirectChildren(baseR, cnt) };
+            });
+        }
+        function nodeCommentFontPxAtBaseCommentRadius(label) {
+            const radius = NODE_BASE_RADIUS_COMMENT;
             const text = String(label || "");
             const w = commentTotalWeight(text);
             const len = Math.max(1, text.length, Math.ceil(w / 2));
@@ -286,11 +310,20 @@
             const byHeight = contentH / (maxLines * lh);
             return Math.max(9, Math.min(17, Math.floor(Math.min(byWidth, byHeight) * 0.96)));
         }
+        /** Font scales with radius so circle/text ratio matches the start (base comment radius). */
+        function nodeCommentFontPx(radius, label) {
+            const refPx = nodeCommentFontPxAtBaseCommentRadius(label);
+            const s = radius / NODE_BASE_RADIUS_COMMENT;
+            return Math.max(8, Math.round(refPx * s));
+        }
         const NODE_HOVER_SCALE = 1.12;
         const ROOT_TRUNC_MIN_USERNAME = 15;
 
-        function getRootHandleLayout() {
-            return { fontPx: HANDLE_FONT_PX, iconPx: HANDLE_FONT_PX };
+        function getRootHandleLayout(radiusPx = NODE_BASE_RADIUS_ROOT) {
+            const k = radiusPx / NODE_BASE_RADIUS_ROOT;
+            const fontPx = Math.max(12, Math.round(HANDLE_FONT_PX * k));
+            const iconPx = Math.max(12, Math.round(HANDLE_FONT_PX * k));
+            return { fontPx, iconPx };
         }
         function measureSvgLabelWidth(str, fontPx, fontFamily) {
             const ctx = document.createElement("canvas").getContext("2d");
@@ -371,8 +404,7 @@
                 .attr("stroke-linejoin", "round");
         }
         function renderIosRootLabel(gl, d) {
-            const fontPx = HANDLE_FONT_PX;
-            const iconPx = HANDLE_FONT_PX;
+            const { fontPx, iconPx } = getRootHandleLayout(d.radius);
             const gap = 2;
             const fontFamily = "Helvetica Neue, Arial, sans-serif";
             const pad = d.radius * 0.12;
@@ -451,7 +483,7 @@
             const snap = await getDoc(checkRef);
             if(!snap.exists()) {
                 // 💡 루트 노드 반지름 65로 설정 (일반 노드 55보다 조금 큰 사이즈)
-                await setDoc(checkRef, { nodes: [{ id: "root", label: val, color: "#ffffff", radius: 65, x: window.innerWidth/2, y: window.innerHeight/2, phase: Math.random()*Math.PI*2 }], links: [] });
+                await setDoc(checkRef, { nodes: [{ id: "root", label: val, color: "#ffffff", baseRadius: NODE_BASE_RADIUS_ROOT, radius: NODE_BASE_RADIUS_ROOT, x: window.innerWidth/2, y: window.innerHeight/2, phase: Math.random()*Math.PI*2 }], links: [] });
                 await setDoc(doc(db, "metadata", "handles"), { list: arrayUnion(val) }, { merge: true });
             }
             window.location.href = "/" + val;
@@ -503,11 +535,11 @@
         onSnapshot(docRef, snap => {
             if(snap.exists()) {
                 const d = snap.data();
-                // 💡 루트 노드 로드 시 강제로 반지름 65로 보정 (일관성 유지)
-                dataset.nodes = d.nodes.map(n => ({...n, label: n.id==='root'?handle:n.label, radius: n.id==='root'?65:n.radius}));
                 dataset.links = d.links;
+                const rawNodes = d.nodes.map(n => ({ ...n, label: n.id === "root" ? handle : n.label }));
+                dataset.nodes = normalizeNodeRadii(rawNodes, dataset.links);
             } else {
-                dataset = { nodes: [{ id: "root", label: handle, color: "#ffffff", radius: 65, x: window.innerWidth/2, y: window.innerHeight/2 }], links: [] };
+                dataset = { nodes: [{ id: "root", label: handle, color: "#ffffff", baseRadius: NODE_BASE_RADIUS_ROOT, radius: NODE_BASE_RADIUS_ROOT, x: window.innerWidth/2, y: window.innerHeight/2, phase: Math.random() * Math.PI * 2 }], links: [] };
             }
             restartSimulation(dataset.nodes.length);
         });
@@ -604,7 +636,7 @@
                 .style("min-height", d => `${d.radius * 2.2}px`)
                 .html(d => {
                 if (d.id === "root") {
-                    const { fontPx, iconPx } = getRootHandleLayout();
+                    const { fontPx, iconPx } = getRootHandleLayout(d.radius);
                     const igUser = encodeURIComponent(handle.replace("@", ""));
                     const igHref = `https://www.instagram.com/${igUser}/`;
                     const clipR = `${d.radius}px`;
@@ -684,15 +716,33 @@
             if (!v) return;
             if (commentTotalWeight(v) > COMMENT_MAX_WEIGHT) return;
             const nid = "n-" + Date.now();
-            const cleanNodes = dataset.nodes.map(n => ({ id: n.id, label: n.label, color: n.color, radius: n.radius, x: n.x, y: n.y, phase: n.phase || 0 }));
+            let cleanNodes = dataset.nodes.map(n => ({
+                id: n.id,
+                label: n.label,
+                color: n.color,
+                baseRadius: typeof n.baseRadius === "number" && n.baseRadius > 0 ? n.baseRadius : (n.id === "root" ? NODE_BASE_RADIUS_ROOT : NODE_BASE_RADIUS_COMMENT),
+                x: n.x,
+                y: n.y,
+                phase: n.phase || 0
+            }));
             const cleanLinks = dataset.links.map(l => ({ source: l.source.id || l.source, target: l.target.id || l.target }));
-            // 💡 일반 노드 시작 사이즈 55 유지
-            cleanNodes.push({ id: nid, label: v, color: "#fff", radius: 55, x: selNode.x, y: selNode.y, phase: Math.random()*Math.PI*2 });
+            cleanNodes.push({
+                id: nid,
+                label: v,
+                color: "#fff",
+                baseRadius: NODE_BASE_RADIUS_COMMENT,
+                x: selNode.x,
+                y: selNode.y,
+                phase: Math.random() * Math.PI * 2
+            });
             cleanLinks.push({ source: selNode.id, target: nid });
-            const p = cleanNodes.find(n => n.id === selNode.id); if (p && p.radius < 250) p.radius += 10;
-            closeModal(); await updateDoc(docRef, { nodes: cleanNodes, links: cleanLinks });
+            cleanNodes = normalizeNodeRadii(cleanNodes, cleanLinks);
+            closeModal(); await updateDoc(docRef, {
+                nodes: cleanNodes.map(n => ({ id: n.id, label: n.label, color: n.color, baseRadius: n.baseRadius, radius: n.radius, x: n.x, y: n.y, phase: n.phase || 0 })),
+                links: cleanLinks
+            });
         };
-        window.submitDelete = async function() { const toRemove = new Set([window.nodeToDel.id]); let added; do { added = false; dataset.links.forEach(l => { const src = l.source.id || l.source, tgt = l.target.id || l.target; if (toRemove.has(src) && !toRemove.has(tgt)) { toRemove.add(tgt); added = true; } }); } while(added); const nodes = dataset.nodes.filter(n => !toRemove.has(n.id)); const links = dataset.links.filter(l => !toRemove.has(l.source.id || l.source) && !toRemove.has(l.target.id || l.target)); await updateDoc(docRef, { nodes: nodes.map(n=>({id:n.id,label:n.label,color:n.color,radius:n.radius,x:n.x,y:n.y,phase:n.phase})), links: links.map(l=>({source:l.source.id||l.source, target:l.target.id||l.target})) }); closeDeleteModal(); };
+        window.submitDelete = async function() { const toRemove = new Set([window.nodeToDel.id]); let added; do { added = false; dataset.links.forEach(l => { const src = l.source.id || l.source, tgt = l.target.id || l.target; if (toRemove.has(src) && !toRemove.has(tgt)) { toRemove.add(tgt); added = true; } }); } while(added); const nodes = dataset.nodes.filter(n => !toRemove.has(n.id)); const links = dataset.links.filter(l => !toRemove.has(l.source.id || l.source) && !toRemove.has(l.target.id || l.target)); const norm = normalizeNodeRadii(nodes, links); await updateDoc(docRef, { nodes: norm.map(n => ({ id: n.id, label: n.label, color: n.color, baseRadius: n.baseRadius, radius: n.radius, x: n.x, y: n.y, phase: n.phase || 0 })), links: links.map(l => ({ source: l.source.id || l.source, target: l.target.id || l.target })) }); closeDeleteModal(); };
         window.submitDeleteTree = async function() { await deleteDoc(doc(db, "trees", window.treeToDel)); await updateDoc(doc(db, "metadata", "handles"), { list: arrayRemove(window.treeToDel) }); window.location.href = "/@wooramsol"; };
         window.openDeleteModal = (n) => { window.nodeToDel = n; document.getElementById('deleteModal').style.display = 'flex'; };
         window.closeDeleteModal = () => document.getElementById('deleteModal').style.display='none';
