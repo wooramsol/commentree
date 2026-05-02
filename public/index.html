@@ -214,9 +214,9 @@
     <div id="inputModal" onclick="if(event.target===this) closeModal()">
         <div class="modal-content">
             <div class="reply-context"><span>Replying to</span><span id="replyTargetLabel" class="reply-target"></span></div>
-            <p class="modal-disclaimer">Once posted, comments cannot be deleted.</p>
-            <textarea id="commentInput" class="modal-input modal-input-comment" maxlength="50" rows="1" placeholder="Write a comment..." enterkeyhint="send" spellcheck="true"></textarea>
-            <div class="modal-footer"><span id="charCount" style="color:#999; font-size:0.8rem">0/50</span><button class="modal-btn" onclick="submitComment()">Post</button></div>
+            <p class="modal-disclaimer">Once posted, comments cannot be deleted. Limit: 100 Roman letters or 50 Korean syllables (mixed counts toward the same cap).</p>
+            <textarea id="commentInput" class="modal-input modal-input-comment" maxlength="500" rows="1" placeholder="Write a comment..." enterkeyhint="send" spellcheck="true"></textarea>
+            <div class="modal-footer"><span id="charCount" style="color:#999; font-size:0.8rem">0/100</span><button class="modal-btn" onclick="submitComment()">Post</button></div>
         </div>
     </div>
 
@@ -238,14 +238,42 @@
         function escapeRegExp(s) {
             return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         }
+        /** Hangul = 2, other = 1 → max 100 (= 한글 50자 or ASCII ~100). */
+        const COMMENT_MAX_WEIGHT = 100;
+        function isHangulCodePoint(cp) {
+            if (cp >= 0xAC00 && cp <= 0xD7A3) return true;
+            if (cp >= 0x3131 && cp <= 0x318E) return true;
+            if (cp >= 0x1100 && cp <= 0x11FF) return true;
+            return false;
+        }
+        function commentCharWeight(ch) {
+            return isHangulCodePoint(ch.codePointAt(0)) ? 2 : 1;
+        }
+        function commentTotalWeight(str) {
+            let w = 0;
+            for (const ch of str) w += commentCharWeight(ch);
+            return w;
+        }
+        function truncateCommentToMaxWeight(str, maxW = COMMENT_MAX_WEIGHT) {
+            let out = "";
+            let w = 0;
+            for (const ch of str) {
+                const add = commentCharWeight(ch);
+                if (w + add > maxW) break;
+                out += ch;
+                w += add;
+            }
+            return out;
+        }
         function rootExtSvg(px) {
             return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
         }
         const HANDLE_FONT_PX = 17;
-        /** Fits ~50 chars inside the node circle (FO padding + up to 2 lines). */
+        /** Fits long comments inside the node circle (FO padding + up to 2 lines). */
         function nodeCommentFontPx(radius, label) {
             const text = String(label || "");
-            const len = Math.max(text.length, 1);
+            const w = commentTotalWeight(text);
+            const len = Math.max(1, text.length, Math.ceil(w / 2));
             const fo = radius * 2.2;
             const pad = fo * 0.12;
             const contentW = Math.max(fo - 2 * pad, 8);
@@ -403,7 +431,7 @@
             document.getElementById('inputModal').style.display = 'none';
             el.value = '';
             el.style.height = '';
-            document.getElementById('charCount').innerText = '0/50';
+            document.getElementById('charCount').innerText = `0/${COMMENT_MAX_WEIGHT}`;
         };
 
         const igRegex = /^(?!.*\.\.)(?!^\.)(?!.*\.$)[a-zA-Z0-9._]{1,30}$/;
@@ -618,8 +646,24 @@
         }
 
         const commentInputEl = document.getElementById('commentInput');
+        let commentInputComposing = false;
+        function syncCommentInputToWeightLimit() {
+            const t = truncateCommentToMaxWeight(commentInputEl.value, COMMENT_MAX_WEIGHT);
+            if (t !== commentInputEl.value) {
+                commentInputEl.value = t;
+                try { commentInputEl.setSelectionRange(t.length, t.length); } catch (_) {}
+            }
+            document.getElementById('charCount').innerText = `${commentTotalWeight(commentInputEl.value)}/${COMMENT_MAX_WEIGHT}`;
+        }
+        commentInputEl.addEventListener('compositionstart', () => { commentInputComposing = true; });
+        commentInputEl.addEventListener('compositionend', () => {
+            commentInputComposing = false;
+            syncCommentInputToWeightLimit();
+            window.resizeCommentInput();
+        });
         commentInputEl.addEventListener('input', () => {
-            document.getElementById('charCount').innerText = commentInputEl.value.length + '/50';
+            if (!commentInputComposing) syncCommentInputToWeightLimit();
+            else document.getElementById('charCount').innerText = `${commentTotalWeight(commentInputEl.value)}/${COMMENT_MAX_WEIGHT}`;
             window.resizeCommentInput();
         });
         commentInputEl.addEventListener('keydown', (e) => {
@@ -636,8 +680,9 @@
             requestAnimationFrame(() => { requestAnimationFrame(() => window.resizeCommentInput()); });
         };
         window.submitComment = async () => {
-            const v = commentInputEl.value.replace(/\s+/g, ' ').trim();
+            let v = truncateCommentToMaxWeight(commentInputEl.value.replace(/\s+/g, ' ').trim(), COMMENT_MAX_WEIGHT);
             if (!v) return;
+            if (commentTotalWeight(v) > COMMENT_MAX_WEIGHT) return;
             const nid = "n-" + Date.now();
             const cleanNodes = dataset.nodes.map(n => ({ id: n.id, label: n.label, color: n.color, radius: n.radius, x: n.x, y: n.y, phase: n.phase || 0 }));
             const cleanLinks = dataset.links.map(l => ({ source: l.source.id || l.source, target: l.target.id || l.target }));
