@@ -217,8 +217,36 @@
             }
             cp.select("circle").attr("r", r);
         }
+        function appendRootExtIconSvg(parent, iconPx) {
+            const k = iconPx / 24;
+            const g = parent.append("g")
+                .attr("transform", `translate(0,${-iconPx / 2}) scale(${k})`)
+                .attr("aria-hidden", "true");
+            g.append("path")
+                .attr("d", "M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6")
+                .attr("fill", "none")
+                .attr("stroke", "#16a34a")
+                .attr("stroke-width", 2)
+                .attr("stroke-linecap", "round")
+                .attr("stroke-linejoin", "round");
+            g.append("polyline")
+                .attr("points", "15 3 21 3 21 9")
+                .attr("fill", "none")
+                .attr("stroke", "#16a34a")
+                .attr("stroke-width", 2)
+                .attr("stroke-linecap", "round")
+                .attr("stroke-linejoin", "round");
+            g.append("line")
+                .attr("x1", 10).attr("y1", 14).attr("x2", 21).attr("y2", 3)
+                .attr("fill", "none")
+                .attr("stroke", "#16a34a")
+                .attr("stroke-width", 2)
+                .attr("stroke-linecap", "round")
+                .attr("stroke-linejoin", "round");
+        }
         function renderIosRootLabel(gl) {
             const fontPx = HANDLE_FONT_PX;
+            const iconPx = HANDLE_FONT_PX;
             const igHref = `https://www.instagram.com/${encodeURIComponent(handle.replace("@", ""))}/`;
             let line = handle;
             if (line.length > 26) line = line.slice(0, 24) + "…";
@@ -227,7 +255,8 @@
             gl.selectAll("*").remove();
             gl.attr("pointer-events", "none");
             gl.attr("clip-path", "url(#ios-root-clip)");
-            const inner = gl.append("g").attr("transform", `translate(${-(tw + gap + fontPx * 0.85) / 2},0)`);
+            const totalW = tw + gap + iconPx;
+            const inner = gl.append("g").attr("transform", `translate(${-totalW / 2},0)`);
             inner.append("text")
                 .attr("pointer-events", "none")
                 .attr("x", 0)
@@ -244,19 +273,11 @@
                 .attr("target", "_blank")
                 .attr("rel", "noopener noreferrer")
                 .attr("pointer-events", "all")
+                .attr("transform", `translate(${tw + gap},0)`)
                 .style("cursor", "pointer")
                 .on("click", function(e) { e.stopPropagation(); })
                 .on("touchend", function(e) { e.stopPropagation(); });
-            a.append("text")
-                .attr("x", tw + gap)
-                .attr("y", 0)
-                .attr("dy", ".35em")
-                .attr("text-anchor", "start")
-                .attr("fill", "#16a34a")
-                .attr("font-weight", 900)
-                .attr("font-size", fontPx * 0.92)
-                .attr("font-family", "Helvetica Neue, Arial, sans-serif")
-                .text("↗");
+            appendRootExtIconSvg(a, iconPx);
         }
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
