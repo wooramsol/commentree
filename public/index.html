@@ -113,8 +113,9 @@
             -webkit-box-orient: vertical;
             -webkit-line-clamp: 2;
             overflow: hidden;
-            text-overflow: ellipsis;
         }
+        .root-handle-line--ellipsis { text-overflow: ellipsis; }
+        .root-handle-line--clip { text-overflow: clip; }
         @keyframes heartbeat { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
         .pulse-node circle { animation: heartbeat 1.5s ease-in-out infinite; }
         .zoom-controls { position: fixed; bottom: 25px; right: 25px; display: flex; flex-direction: column; gap: 8px; z-index: 10; pointer-events: auto; }
@@ -201,6 +202,48 @@
         function rootExtSvg(px) {
             return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
         }
+        const HANDLE_FONT_PX = 17;
+        const NODE_HOVER_SCALE = 1.12;
+        const ROOT_TRUNC_MIN_USERNAME = 15;
+
+        function getRootHandleLayout() {
+            return { fontPx: HANDLE_FONT_PX, iconPx: HANDLE_FONT_PX };
+        }
+        function measureSvgLabelWidth(str, fontPx, fontFamily) {
+            const ctx = document.createElement("canvas").getContext("2d");
+            ctx.font = `900 ${fontPx}px ${fontFamily}`;
+            return ctx.measureText(str).width;
+        }
+        function breakRootHandleForIos(handleStr, maxLineWidthPx, fontPx, fontFamily) {
+            const userLen = handleStr.replace(/^@/, "").length;
+            const useEllipsis = userLen >= ROOT_TRUNC_MIN_USERNAME;
+            const w = (s) => measureSvgLabelWidth(s, fontPx, fontFamily);
+            if (w(handleStr) <= maxLineWidthPx) {
+                return { lines: [handleStr], textW: w(handleStr) };
+            }
+            let lo = 1, hi = handleStr.length, best = 0;
+            while (lo <= hi) {
+                const mid = (lo + hi) >> 1;
+                if (w(handleStr.slice(0, mid)) <= maxLineWidthPx) { best = mid; lo = mid + 1; }
+                else hi = mid - 1;
+            }
+            if (best < 1) best = 1;
+            const line1 = handleStr.slice(0, best);
+            const rest = handleStr.slice(best);
+            if (!rest.length) return { lines: [line1], textW: w(line1) };
+            if (w(rest) <= maxLineWidthPx) return { lines: [line1, rest], textW: Math.max(w(line1), w(rest)) };
+            const suf = useEllipsis ? "…" : "";
+            lo = 0; hi = rest.length; best = 0;
+            while (lo <= hi) {
+                const mid = (lo + hi) >> 1;
+                const cand = rest.slice(0, mid) + suf;
+                if (w(cand) <= maxLineWidthPx) { best = mid; lo = mid + 1; }
+                else hi = mid - 1;
+            }
+            if (best < 1 && rest.length) best = 1;
+            const line2 = rest.slice(0, best) + suf;
+            return { lines: [line1, line2], textW: Math.max(w(line1), w(line2)) };
+        }
         function isLikelyIOS() {
             const ua = navigator.userAgent || "";
             if (/iP(ad|hone|od)/i.test(ua)) return true;
@@ -244,36 +287,39 @@
                 .attr("stroke-linecap", "round")
                 .attr("stroke-linejoin", "round");
         }
-        function renderIosRootLabel(gl) {
+        function renderIosRootLabel(gl, d) {
             const fontPx = HANDLE_FONT_PX;
             const iconPx = HANDLE_FONT_PX;
-            const igHref = `https://www.instagram.com/${encodeURIComponent(handle.replace("@", ""))}/`;
-            let line = handle;
-            if (line.length > 26) line = line.slice(0, 24) + "…";
-            const tw = Math.min(line.length, 26) * fontPx * 0.48;
             const gap = 2;
+            const fontFamily = "Helvetica Neue, Arial, sans-serif";
+            const pad = d.radius * 0.12;
+            const maxLineW = Math.max(fontPx * 4, d.radius * 2.2 - 2 * pad - iconPx - gap - 4);
+            const { lines, textW } = breakRootHandleForIos(handle, maxLineW, fontPx, fontFamily);
+            const lh = fontPx * 1.12;
+            const blockH = lines.length * lh;
+            const igHref = `https://www.instagram.com/${encodeURIComponent(handle.replace("@", ""))}/`;
             gl.selectAll("*").remove();
             gl.attr("pointer-events", "none");
             gl.attr("clip-path", "url(#ios-root-clip)");
-            const totalW = tw + gap + iconPx;
+            const totalW = textW + gap + iconPx;
             const inner = gl.append("g").attr("transform", `translate(${-totalW / 2},0)`);
-            inner.append("text")
+            const t = inner.append("text")
                 .attr("pointer-events", "none")
                 .attr("x", 0)
-                .attr("y", 0)
-                .attr("dy", ".35em")
+                .attr("y", -blockH / 2 + lh * 0.88)
                 .attr("text-anchor", "start")
                 .attr("fill", "#16a34a")
                 .attr("font-weight", 900)
                 .attr("font-size", fontPx)
-                .attr("font-family", "Helvetica Neue, Arial, sans-serif")
-                .text(line);
+                .attr("font-family", fontFamily);
+            t.append("tspan").attr("x", 0).attr("dy", 0).text(lines[0]);
+            if (lines[1]) t.append("tspan").attr("x", 0).attr("dy", lh).text(lines[1]);
             const a = inner.append("a")
                 .attr("href", igHref)
                 .attr("target", "_blank")
                 .attr("rel", "noopener noreferrer")
                 .attr("pointer-events", "all")
-                .attr("transform", `translate(${tw + gap},0)`)
+                .attr("transform", `translate(${textW + gap},0)`)
                 .style("cursor", "pointer")
                 .on("click", function(e) { e.stopPropagation(); })
                 .on("touchend", function(e) { e.stopPropagation(); });
@@ -310,13 +356,6 @@
         if (!handle.startsWith("@")) handle = "@" + handle;
         const navInput = document.getElementById("navInput");
         navInput.placeholder = handle;
-
-        const HANDLE_FONT_PX = 17;
-        const NODE_HOVER_SCALE = 1.12;
-
-        function getRootHandleLayout() {
-            return { fontPx: HANDLE_FONT_PX, iconPx: HANDLE_FONT_PX };
-        }
 
         window.navigateToHandle = async function() {
             let val = navInput.value.trim().toLowerCase();
@@ -462,7 +501,7 @@
                 ensureIosRootClip(svg, d.radius);
                 let gl = core.select("g.ios-root-label");
                 if (gl.empty()) gl = core.append("g").attr("class", "ios-root-label");
-                renderIosRootLabel(gl);
+                renderIosRootLabel(gl, d);
             });
             node.select(".node-core circle").attr("r", d => d.radius).attr("fill", d => d.color);
             const foBacked = node.filter(d => !(d.id === "root" && useIosRoot));
@@ -486,7 +525,9 @@
                     const igUser = encodeURIComponent(handle.replace("@", ""));
                     const igHref = `https://www.instagram.com/${igUser}/`;
                     const clipR = `${d.radius}px`;
-                    return `<div class="root-bubble-wrap" style="--root-clip-r:${clipR};padding:6% 5%;pointer-events:none;"><div class="root-handle-row"><span class="root-handle-line" style="flex:0 1 auto;min-width:0;max-width:calc(100% - ${iconPx}px);font-weight:900;color:var(--accent);letter-spacing:-0.02em;font-size:${fontPx}px;text-shadow:0 0 0.08em rgba(255,255,255,0.95),0 0 0.12em rgba(255,255,255,0.7);">${escapeHtml(handle)}</span><a class="root-social-link root-inline-ext" href="${igHref}" target="_blank" rel="noopener noreferrer" aria-label="Open Instagram" style="pointer-events:auto;flex-shrink:0;display:flex;align-items:center;margin:0;padding:0;" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="event.stopPropagation()">${rootExtSvg(iconPx)}</a></div></div>`;
+                    const userLen = handle.replace(/^@/, "").length;
+                    const truncCls = userLen >= ROOT_TRUNC_MIN_USERNAME ? "root-handle-line--ellipsis" : "root-handle-line--clip";
+                    return `<div class="root-bubble-wrap" style="--root-clip-r:${clipR};padding:6% 5%;pointer-events:none;"><div class="root-handle-row"><span class="root-handle-line ${truncCls}" style="flex:0 1 auto;min-width:0;max-width:calc(100% - ${iconPx}px);font-weight:900;color:var(--accent);letter-spacing:-0.02em;font-size:${fontPx}px;text-shadow:0 0 0.08em rgba(255,255,255,0.95),0 0 0.12em rgba(255,255,255,0.7);">${escapeHtml(handle)}</span><a class="root-social-link root-inline-ext" href="${igHref}" target="_blank" rel="noopener noreferrer" aria-label="Open Instagram" style="pointer-events:auto;flex-shrink:0;display:flex;align-items:center;margin:0;padding:0;" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="event.stopPropagation()">${rootExtSvg(iconPx)}</a></div></div>`;
                 }
                 return `<div class="node-label-inner" style="padding:12%; width:100%; height:100%; box-sizing:border-box; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:${HANDLE_FONT_PX}px; pointer-events:none;">${escapeHtml(d.label)}</div>`;
             });
