@@ -56,8 +56,36 @@
         #tooltip { position: absolute; display: none; background: rgba(0,0,0,0.8); color: #fff; padding: 6px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; pointer-events: none; z-index: 1000; white-space: nowrap; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
         #inputModal, #deleteModal, #deleteTreeModal, #adminModal, #logoutModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); z-index: 100; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
         .modal-content { background: rgba(255, 255, 255, 0.98); padding: 20px; border-radius: 20px; box-shadow: 0 25px 50px rgba(0,0,0,0.2); width: 92%; max-width: 400px; text-align: left; }
-        .reply-context { font-size: 0.8rem; color: #777; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid #f0f0f0; padding-bottom: 10px; }
-        .reply-target { color: var(--accent); font-weight: 800; max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .reply-context {
+            font-size: 0.8rem;
+            color: #777;
+            margin-bottom: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+            border-bottom: 1px solid #f0f0f0;
+            padding-bottom: 10px;
+        }
+        .reply-context > span:first-child { flex-shrink: 0; }
+        .reply-target {
+            color: var(--accent);
+            font-weight: 800;
+            width: 100%;
+            white-space: normal;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            line-height: 1.25;
+        }
+        .bubble-text:not(.bubble-text--root) .node-label-inner {
+            white-space: normal;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            line-height: 1.15;
+            min-width: 0;
+            overflow: hidden;
+            clip-path: circle(48% at 50% 50%);
+        }
         .modal-input { width: 100%; border: none; background: #f5f5f5; border-radius: 12px; font-size: 16px; padding: 15px; margin-bottom: 15px; outline: none; box-sizing: border-box; -webkit-user-select: text; user-select: text; font-family: inherit;}
         #commentInput.modal-input-comment {
             min-height: 52px;
@@ -214,6 +242,22 @@
             return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
         }
         const HANDLE_FONT_PX = 17;
+        /** Fits ~50 chars inside the node circle (FO padding + up to 2 lines). */
+        function nodeCommentFontPx(radius, label) {
+            const text = String(label || "");
+            const len = Math.max(text.length, 1);
+            const fo = radius * 2.2;
+            const pad = fo * 0.12;
+            const contentW = Math.max(fo - 2 * pad, 8);
+            const contentH = Math.max(fo - 2 * pad, 8);
+            const maxLines = 2;
+            const lh = 1.18;
+            const avgCharEm = 0.56;
+            const charsFirstRow = Math.ceil(len / maxLines);
+            const byWidth = contentW / (charsFirstRow * avgCharEm);
+            const byHeight = contentH / (maxLines * lh);
+            return Math.max(9, Math.min(17, Math.floor(Math.min(byWidth, byHeight) * 0.96)));
+        }
         const NODE_HOVER_SCALE = 1.12;
         const ROOT_TRUNC_MIN_USERNAME = 15;
 
@@ -540,7 +584,8 @@
                     const truncCls = userLen >= ROOT_TRUNC_MIN_USERNAME ? "root-handle-line--ellipsis" : "root-handle-line--clip";
                     return `<div class="root-bubble-wrap" style="--root-clip-r:${clipR};padding:6% 5%;pointer-events:none;"><div class="root-handle-row"><span class="root-handle-line ${truncCls}" style="flex:0 1 auto;min-width:0;max-width:calc(100% - ${iconPx}px);font-weight:900;color:var(--accent);letter-spacing:-0.02em;font-size:${fontPx}px;text-shadow:0 0 0.08em rgba(255,255,255,0.95),0 0 0.12em rgba(255,255,255,0.7);">${escapeHtml(handle)}</span><a class="root-social-link root-inline-ext" href="${igHref}" target="_blank" rel="noopener noreferrer" aria-label="Open Instagram" style="pointer-events:auto;flex-shrink:0;display:flex;align-items:center;margin:0;padding:0;" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="event.stopPropagation()">${rootExtSvg(iconPx)}</a></div></div>`;
                 }
-                return `<div class="node-label-inner" style="padding:12%; width:100%; height:100%; box-sizing:border-box; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:${HANDLE_FONT_PX}px; pointer-events:none;">${escapeHtml(d.label)}</div>`;
+                const fontPx = nodeCommentFontPx(d.radius, d.label);
+                return `<div class="node-label-inner" style="padding:12%; width:100%; height:100%; box-sizing:border-box; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:${fontPx}px; pointer-events:none;">${escapeHtml(d.label)}</div>`;
             });
 
             node.selectAll("g.root-ig-icons").remove();
