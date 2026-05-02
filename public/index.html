@@ -271,7 +271,7 @@
         const HANDLE_FONT_PX = 17;
         const NODE_BASE_RADIUS_ROOT = 65;
         const NODE_BASE_RADIUS_COMMENT = 55;
-        const NODE_CHILDREN_FOR_MAX_SCALE = 1000;
+        const NODE_CHILDREN_FOR_MAX_SCALE = 100;
         const NODE_RADIUS_MAX_SCALE = 10;
         function linkEndpointId(end) {
             return typeof end === "object" && end != null && end.id != null ? end.id : end;
@@ -283,6 +283,11 @@
             const n = Math.min(Math.max(childCount, 0), NODE_CHILDREN_FOR_MAX_SCALE);
             const t = n / NODE_CHILDREN_FOR_MAX_SCALE;
             return baseRadius * (1 + (NODE_RADIUS_MAX_SCALE - 1) * t);
+        }
+        /** 0 replies → 50% opacity; 100+ replies → 100% (linear). Applies to whole node (circle + text). */
+        function nodeOpacityFromDirectChildren(childCount) {
+            const n = Math.min(Math.max(childCount, 0), NODE_CHILDREN_FOR_MAX_SCALE);
+            return 0.5 + 0.5 * (n / NODE_CHILDREN_FOR_MAX_SCALE);
         }
         function normalizeNodeRadii(nodes, links) {
             return nodes.map(n => {
@@ -597,6 +602,7 @@
                 core.append("foreignObject").append("xhtml:div").attr("class", "bubble-text");
                 return nodeG;
             });
+            node.style("opacity", d => nodeOpacityFromDirectChildren(directChildCount(d.id, dataset.links)));
             node.each(function() {
                 const g = d3.select(this);
                 if (g.select(".node-core").empty()) {
