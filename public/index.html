@@ -60,10 +60,20 @@
         .modal-disclaimer { font-size: 0.75rem; color: #888; margin: 0 0 10px 0; line-height: 1.4; }
         .modal-footer { display: flex; justify-content: space-between; align-items: center; }
         .modal-btn { padding: 12px 28px; background: #000; color: white; border: none; border-radius: 25px; cursor: pointer; font-weight: 800; font-size: 1rem; transition: transform 0.1s; }
-        .bubble-text { display: flex; justify-content: center; align-items: center; text-align: center; width: 100%; height: 100%; overflow: visible; box-sizing: border-box; pointer-events: none; }
+        /* stretch: 모바일 Safari foreignObject 안에서 높이 100%가 깨질 때 가운데 정렬이 왼쪽 위로 붙는 것 방지 */
+        .bubble-text { display: flex; flex-direction: column; justify-content: center; align-items: stretch; text-align: center; width: 100%; height: 100%; min-height: 100%; overflow: visible; box-sizing: border-box; pointer-events: none; }
         .root-social-link { color: var(--accent); display: flex; align-items: center; line-height: 0; }
         .root-social-link:hover { color: var(--accent-hover); }
         .root-bubble-wrap {
+            flex: 1 1 auto;
+            width: 100%;
+            min-width: 0;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
             clip-path: circle(var(--root-clip-r) at 50% 50%);
         }
         .root-handle-row {
@@ -72,6 +82,7 @@
             align-items: center;
             justify-content: center;
             gap: 0;
+            width: 100%;
             max-width: 100%;
             min-width: 0;
         }
@@ -101,7 +112,7 @@
             padding: 0 6px;
             box-sizing: border-box;
             text-align: center;
-            font-size: clamp(0.62rem, 2.6vw, 0.9rem);
+            font-size: clamp(0.82rem, 3.4vw, 1.1rem);
             font-weight: 700;
             color: var(--accent);
             line-height: 1.25;
@@ -119,7 +130,7 @@
         @media (max-width: 600px) {
             header { left: 50%; transform: translateX(-50%); top: 15px; width: 96%; align-items: center; }
             .nav-box { width: 100%; }
-            .chart-hint { width: 100%; padding: 0 2px; font-size: clamp(0.58rem, 3.4vw, 0.82rem); }
+            .chart-hint { width: 100%; padding: 0 2px; font-size: clamp(0.78rem, 4vw, 1.02rem); }
         }
     </style>
 </head>
@@ -139,7 +150,7 @@
             </button>
             <div id="allHandlesList" class="handles-list-container hidden"></div>
         </div>
-        <p class="chart-hint" aria-live="polite">Click any node to add a comment.</p>
+        <p class="chart-hint" aria-live="polite">Tap any node to comment</p>
     </header>
     <div id="chart"></div>
     <div class="zoom-controls"><button id="zoomInBtn">+</button><button id="zoomOutBtn">−</button></div>
@@ -351,9 +362,9 @@
                     const igUser = encodeURIComponent(handle.replace("@", ""));
                     const igHref = `https://www.instagram.com/${igUser}/`;
                     const clipR = `${d.radius}px`;
-                    return `<div class="root-bubble-wrap" style="--root-clip-r:${clipR};width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;box-sizing:border-box;padding:6% 5%;"><div class="root-handle-row"><span class="root-handle-line" style="flex:0 1 auto;min-width:0;max-width:calc(100% - ${iconPx}px);font-weight:900;color:var(--accent);letter-spacing:-0.02em;font-size:${fontPx}px;text-shadow:0 0 0.08em rgba(255,255,255,0.95),0 0 0.12em rgba(255,255,255,0.7);">${escapeHtml(handle)}</span><a class="root-social-link root-inline-ext" href="${igHref}" target="_blank" rel="noopener noreferrer" aria-label="Open Instagram" style="pointer-events:auto;flex-shrink:0;display:flex;align-items:center;margin:0;padding:0;" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="event.stopPropagation()">${rootExtSvg(iconPx)}</a></div></div>`;
+                    return `<div class="root-bubble-wrap" style="--root-clip-r:${clipR};padding:6% 5%;pointer-events:none;"><div class="root-handle-row"><span class="root-handle-line" style="flex:0 1 auto;min-width:0;max-width:calc(100% - ${iconPx}px);font-weight:900;color:var(--accent);letter-spacing:-0.02em;font-size:${fontPx}px;text-shadow:0 0 0.08em rgba(255,255,255,0.95),0 0 0.12em rgba(255,255,255,0.7);">${escapeHtml(handle)}</span><a class="root-social-link root-inline-ext" href="${igHref}" target="_blank" rel="noopener noreferrer" aria-label="Open Instagram" style="pointer-events:auto;flex-shrink:0;display:flex;align-items:center;margin:0;padding:0;" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="event.stopPropagation()">${rootExtSvg(iconPx)}</a></div></div>`;
                 }
-                return `<div style="padding:12%; width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:${HANDLE_FONT_PX}px; pointer-events:none;">${escapeHtml(d.label)}</div>`;
+                return `<div style="padding:12%; width:100%; height:100%; min-height:100%; flex:1 1 auto; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:${HANDLE_FONT_PX}px; pointer-events:none;">${escapeHtml(d.label)}</div>`;
             });
 
             node.selectAll("g.root-ig-icons").remove();
