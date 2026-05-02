@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -9,47 +9,87 @@
     <title>commentree</title>
     <script src="https://d3js.org/d3.v7.min.js?v=20260430" defer></script>
     <style>
+        :root {
+            --accent: #16a34a;
+            --accent-hover: #15803d;
+            --accent-soft: rgba(22, 163, 74, 0.1);
+            --accent-tint: #ecfdf5;
+            --link-on-light: #166534;
+        }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #f9f9f9; font-family: 'Helvetica Neue', Arial, sans-serif; -webkit-user-select: none; user-select: none; touch-action: none; overscroll-behavior: none; }
         header { position: absolute; top: 15px; left: 15px; z-index: 10; pointer-events: none; display: flex; flex-direction: column; align-items: flex-start; max-width: 96%; }
         .nav-box { background: rgba(255, 255, 255, 0.9); padding: 10px 14px; border-radius: 12px; backdrop-filter: blur(5px); box-shadow: 0 4px 15px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 8px; width: 380px; max-width: 100%; box-sizing: border-box; pointer-events: auto; }
         .input-wrapper { display: flex; align-items: center; width: 100%; justify-content: space-between; position: relative; }
         .domain-text { font-weight: 800; color: #000; font-size: 1.05rem; letter-spacing: -0.5px; white-space: nowrap; }
         #navInput { border: none; border-bottom: 2px solid #ddd; background: transparent; font-size: 1.05rem; font-weight: bold; color: #000; width: 100%; padding: 0 4px; margin: 0 6px 0 2px; outline: none; transition: border-color 0.3s; flex-grow: 1; -webkit-user-select: text; user-select: text; }
-        #navInput:focus { border-bottom: 2px solid #0095f6; }
-        #goBtn { display: none; background: #0095f6; border: none; font-size: 0.85rem; font-weight: bold; color: #fff; padding: 6px 12px; border-radius: 20px; cursor: pointer; transition: background 0.2s; flex-shrink: 0; }
-        #goBtn:hover { background: #0077c7; }
-        .instruction-text { font-size: 0.85rem; color: #666; margin: 0; padding-left: 2px; }
+        #navInput:focus { border-bottom: 2px solid var(--accent); }
+        #goBtn { display: none; background: var(--accent); border: none; font-size: 0.85rem; font-weight: bold; color: #fff; padding: 6px 12px; border-radius: 20px; cursor: pointer; transition: background 0.2s; flex-shrink: 0; }
+        #goBtn:hover { background: var(--accent-hover); }
         .autocomplete-container { position: absolute; top: 100%; left: 0; width: 100%; background: white; border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,0.15); max-height: 180px; overflow-y: auto; z-index: 20; display: none; flex-direction: column; margin-top: 8px; padding: 4px; box-sizing: border-box; }
         .autocomplete-item { padding: 8px 12px; cursor: pointer; font-size: 0.95rem; font-weight: 500; color: #333; border-radius: 6px; transition: background 0.2s; word-break: break-all; }
-        .autocomplete-item:hover { background: #0095f6; color: white; }
-        .match-highlight { color: #0095f6; font-weight: 900; }
+        .autocomplete-item:hover { background: var(--accent); color: white; }
+        .match-highlight { color: var(--accent); font-weight: 900; }
         .dropdown-btn { background: #f0f0f0; border: none; border-radius: 6px; padding: 6px 10px; font-size: 0.85rem; font-weight: bold; color: #444; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; }
         .dropdown-btn:hover { background: #e8e8e8; }
         #dropdownArrow { transition: transform 0.2s; display: inline-block; font-size: 0.7rem; }
         .dropdown-btn.open #dropdownArrow { transform: rotate(180deg); }
         .handles-list-container { display: flex; flex-direction: column; gap: 4px; max-height: 150px; overflow-y: auto; padding-right: 4px; margin-top: 2px; }
         .hidden { display: none !important; }
-        .handles-list-container a { background: rgba(0, 149, 246, 0.05); color: #333; text-decoration: none; padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; display: block; word-break: break-all; transition: background 0.2s; position: relative; }
-        .handles-list-container a:hover { background: #0095f6; color: white; }
+        .handles-list-container a { background: var(--accent-soft); color: #333; text-decoration: none; padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; display: block; word-break: break-all; transition: background 0.2s; position: relative; }
+        .handles-list-container a:hover { background: var(--accent); color: white; }
         .delete-tree-btn { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: #ff4444; color: white; border: none; border-radius: 4px; padding: 2px 6px; font-size: 0.7rem; cursor: pointer; opacity: 0; transition: opacity 0.2s; }
         .handles-list-container a:hover .delete-tree-btn { opacity: 1; }
-        .active-item { background-color: #e6f3ff !important; color: #0095f6 !important; border-left: 4px solid #0095f6 !important; font-weight: 800 !important; }
+        .active-item { background-color: var(--accent-tint) !important; color: var(--accent) !important; border-left: 4px solid var(--accent) !important; font-weight: 800 !important; }
         .dragging, .dragging * { cursor: grabbing !important; }
         .node { cursor: cell; pointer-events: all; }
         #tooltip { position: absolute; display: none; background: rgba(0,0,0,0.8); color: #fff; padding: 6px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; pointer-events: none; z-index: 1000; white-space: nowrap; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
         #inputModal, #deleteModal, #deleteTreeModal, #adminModal, #logoutModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); z-index: 100; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
         .modal-content { background: rgba(255, 255, 255, 0.98); padding: 20px; border-radius: 20px; box-shadow: 0 25px 50px rgba(0,0,0,0.2); width: 92%; max-width: 400px; text-align: left; }
         .reply-context { font-size: 0.8rem; color: #777; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid #f0f0f0; padding-bottom: 10px; }
-        .reply-target { color: #0095f6; font-weight: 800; max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .reply-target { color: var(--accent); font-weight: 800; max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .modal-input { width: 100%; border: none; background: #f5f5f5; border-radius: 12px; font-size: 16px; padding: 15px; margin-bottom: 15px; outline: none; box-sizing: border-box; -webkit-user-select: text; user-select: text; font-family: inherit;}
+        #commentInput.modal-input-comment {
+            min-height: 52px;
+            max-height: min(40vh, 220px);
+            resize: none;
+            overflow-y: auto;
+            line-height: 1.45;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            vertical-align: top;
+        }
+        .modal-disclaimer { font-size: 0.75rem; color: #888; margin: 0 0 10px 0; line-height: 1.4; }
         .modal-footer { display: flex; justify-content: space-between; align-items: center; }
         .modal-btn { padding: 12px 28px; background: #000; color: white; border: none; border-radius: 25px; cursor: pointer; font-weight: 800; font-size: 1rem; transition: transform 0.1s; }
         .bubble-text { display: flex; justify-content: center; align-items: center; text-align: center; width: 100%; height: 100%; overflow: visible; box-sizing: border-box; pointer-events: none; }
+        .insta-link { color: var(--link-on-light); text-decoration: underline; }
+        .insta-link:hover { color: var(--accent-hover); }
         @keyframes heartbeat { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
         .pulse-node circle { animation: heartbeat 1.5s ease-in-out infinite; }
         .zoom-controls { position: fixed; bottom: 25px; right: 25px; display: flex; flex-direction: column; gap: 8px; z-index: 10; pointer-events: auto; }
         .zoom-controls button { width: 50px; height: 50px; background: white; border: 1px solid #ddd; border-radius: 15px; font-size: 1.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         @media (max-width: 600px) { header { left: 50%; transform: translateX(-50%); top: 15px; width: 96%; align-items: center; } .nav-box { width: 100%; } }
+        .chart-hint {
+            position: fixed;
+            left: 50%;
+            transform: translateX(-50%);
+            top: clamp(130px, 20vh, 200px);
+            z-index: 5;
+            pointer-events: none;
+            max-width: min(92vw, 420px);
+            text-align: center;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--accent);
+            text-shadow: 0 0 12px #f9f9f9, 0 0 8px #f9f9f9, 0 1px 2px rgba(0,0,0,0.15);
+            line-height: 1.35;
+            animation: chartHintPulse 2.5s ease-in-out infinite;
+        }
+        @keyframes chartHintPulse {
+            0%, 100% { opacity: 0.28; }
+            50% { opacity: 1; }
+        }
+        @media (max-width: 600px) { .chart-hint { font-size: 0.82rem; top: clamp(200px, 28vh, 260px); } }
     </style>
 </head>
 <body>
@@ -62,7 +102,6 @@
                 <button id="goBtn" onclick="navigateToHandle()">Create</button>
                 <div id="autocompleteList" class="autocomplete-container"></div>
             </div>
-            <p class="instruction-text">Click any nodes to add comments.</p>
             <button id="dropdownToggle" class="dropdown-btn" onclick="toggleDropdown()">
                 <span>Visit other commentrees <span id="treeCountDisplay"></span></span>
                 <span id="dropdownArrow">▼</span>
@@ -70,13 +109,15 @@
             <div id="allHandlesList" class="handles-list-container hidden"></div>
         </div>
     </header>
+    <p class="chart-hint" aria-live="polite">Click any node to add a comment.</p>
     <div id="chart"></div>
     <div class="zoom-controls"><button id="zoomInBtn">+</button><button id="zoomOutBtn">−</button></div>
 
     <div id="inputModal" onclick="if(event.target===this) closeModal()">
         <div class="modal-content">
             <div class="reply-context"><span>Replying to</span><span id="replyTargetLabel" class="reply-target"></span></div>
-            <input type="text" id="commentInput" class="modal-input" maxlength="50" placeholder="Write a comment..." enterkeyhint="send" onkeydown="if(event.key==='Enter') submitComment(); if(event.key==='Escape') closeModal();" oninput="document.getElementById('charCount').innerText = this.value.length + '/50'">
+            <p class="modal-disclaimer">Once posted, comments cannot be deleted.</p>
+            <textarea id="commentInput" class="modal-input modal-input-comment" maxlength="50" rows="1" placeholder="Write a comment..." enterkeyhint="send" spellcheck="true"></textarea>
             <div class="modal-footer"><span id="charCount" style="color:#999; font-size:0.8rem">0/50</span><button class="modal-btn" onclick="submitComment()">Post</button></div>
         </div>
     </div>
@@ -92,6 +133,13 @@
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
         const firebaseConfig = { apiKey: "AIzaSyD03P2MQJUUwTpkc2B6EGTrttPtb0JKbxU", authDomain: "commentree-87c10.firebaseapp.com", projectId: "commentree-87c10", storageBucket: "commentree-87c10.firebasestorage.app", messagingSenderId: "174582656984", appId: "1:174582656984:web:e877e8161686731c878cad", measurementId: "G-9F4JTS1DV0" };
+        function escapeHtml(str) {
+            if (str == null) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+        function escapeRegExp(s) {
+            return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
@@ -103,7 +151,20 @@
         window.submitLogout = async () => { try { await signOut(auth); alert("Logged Out"); closeLogoutModal(); } catch(err) { alert("Fail"); } };
         window.closeAdminModal = () => document.getElementById('adminModal').style.display='none';
         window.closeLogoutModal = () => document.getElementById('logoutModal').style.display='none';
-        window.closeModal = () => { document.getElementById('inputModal').style.display = 'none'; document.getElementById('commentInput').value = ''; document.getElementById('charCount').innerText = '0/50'; };
+        window.resizeCommentInput = () => {
+            const el = document.getElementById('commentInput');
+            if (!el) return;
+            el.style.height = 'auto';
+            const minH = 52, cap = Math.min(window.innerHeight * 0.38, 220);
+            el.style.height = Math.min(Math.max(el.scrollHeight, minH), cap) + 'px';
+        };
+        window.closeModal = () => {
+            const el = document.getElementById('commentInput');
+            document.getElementById('inputModal').style.display = 'none';
+            el.value = '';
+            el.style.height = '';
+            document.getElementById('charCount').innerText = '0/50';
+        };
 
         const igRegex = /^(?!.*\.\.)(?!^\.)(?!.*\.$)[a-zA-Z0-9._]{1,30}$/;
         let handle = window.location.pathname.replace(/\//g, "").toLowerCase().trim() || "@wooramsol";
@@ -145,8 +206,10 @@
             btn.classList.toggle("open", !isHidden);
             if (!isHidden) {
                 list.innerHTML = cachedHandles.map(h => {
-                    const label = h.toLowerCase() === '@wooramsol' ? h + '👨‍💻' : h;
-                    return `<a href="/${h}" class="${h.toLowerCase() === handle.toLowerCase() ? 'active-item' : ''}">${label}${isAdmin?`<button class="delete-tree-btn" onclick="event.preventDefault(); event.stopPropagation(); openDeleteTreeModal('${h}')">DEL</button>`:''}</a>`;
+                    const labelRaw = h.toLowerCase() === '@wooramsol' ? h + '👨‍💻' : h;
+                    const label = escapeHtml(labelRaw);
+                    const delBtn = isAdmin ? `<button type="button" class="delete-tree-btn" onclick="event.preventDefault(); event.stopPropagation(); openDeleteTreeModal(${JSON.stringify(h)})">DEL</button>` : '';
+                    return `<a href="/${h}" class="${h.toLowerCase() === handle.toLowerCase() ? 'active-item' : ''}">${label}${delBtn}</a>`;
                 }).join('');
             }
         };
@@ -158,8 +221,10 @@
             const filtered = cachedHandles.filter(h => h.toLowerCase().includes(cleanV));
             const list = document.getElementById('autocompleteList');
             list.innerHTML = filtered.slice(0, 8).map(h => {
-                const label = h.toLowerCase()==='@wooramsol'?h+'👨‍💻':h;
-                return `<div class="autocomplete-item" onmousedown="window.location.href='/${h}'">${label.replace(new RegExp(`(${cleanV})`, 'gi'), '<span class="match-highlight">$1</span>')}</div>`;
+                const labelRaw = h.toLowerCase() === '@wooramsol' ? h + '👨‍💻' : h;
+                const safe = escapeHtml(labelRaw);
+                const hl = cleanV ? safe.replace(new RegExp(`(${escapeRegExp(cleanV)})`, 'gi'), '<span class="match-highlight">$1</span>') : safe;
+                return `<div class="autocomplete-item" onmousedown="window.location.href=${JSON.stringify('/' + h)}">${hl}</div>`;
             }).join('');
             list.style.display = filtered.length ? 'flex' : 'none';
             document.getElementById('goBtn').style.display = (!cachedHandles.some(h=>h.toLowerCase()==='@'+cleanV) && igRegex.test(cleanV)) ? 'block' : 'none';
@@ -234,10 +299,12 @@
             node.select(".bubble-text").html(d => {
                 if (d.id === "root") {
                     const cleanH = handle.replace("@", "");
-                    const fs = (d.radius * 2) / (handle.length * 0.75); 
-                    return `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; pointer-events:none; font-weight:900; font-size:${Math.min(fs, d.radius * 0.75)}px; transition: font-size 0.2s;"><a href="https://www.instagram.com/${cleanH}/" target="_blank" class="insta-link" style="color:#0000EE; text-decoration:underline; pointer-events:auto; white-space:nowrap; padding: 10px;" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" ontouchend="event.stopPropagation(); window.location.href='https://www.instagram.com/${cleanH}/';" onclick="event.stopPropagation()">${handle}</a></div>`;
+                    const igPath = encodeURIComponent(cleanH);
+                    const fs = (d.radius * 2) / (handle.length * 0.75);
+                    const igUrl = `https://www.instagram.com/${igPath}/`;
+                    return `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; pointer-events:none; font-weight:900; font-size:${Math.min(fs, d.radius * 0.75)}px; transition: font-size 0.2s;"><a href="${igUrl}" target="_blank" rel="noopener noreferrer" class="insta-link" style="pointer-events:auto; white-space:nowrap; padding: 10px;" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" ontouchend="event.stopPropagation()" onclick="event.stopPropagation()">${escapeHtml(handle)}</a></div>`;
                 }
-                return `<div style="padding:12%; width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:${Math.max(11, d.radius/4.2)}px; pointer-events:none; transition: font-size 0.2s;">${d.label}</div>`;
+                return `<div style="padding:12%; width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:${Math.max(11, d.radius/4.2)}px; pointer-events:none; transition: font-size 0.2s;">${escapeHtml(d.label)}</div>`;
             });
             
             if (window.matchMedia("(hover: hover)").matches) {
@@ -263,10 +330,27 @@
             }
         }
 
+        const commentInputEl = document.getElementById('commentInput');
+        commentInputEl.addEventListener('input', () => {
+            document.getElementById('charCount').innerText = commentInputEl.value.length + '/50';
+            window.resizeCommentInput();
+        });
+        commentInputEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); window.submitComment(); }
+            if (e.key === 'Escape') window.closeModal();
+        });
+
         let selNode;
-        window.openModal = (n) => { selNode = n; document.getElementById('replyTargetLabel').innerText = `"${n.label}"`; document.getElementById('inputModal').style.display = 'flex'; document.getElementById('commentInput').focus(); };
+        window.openModal = (n) => {
+            selNode = n;
+            document.getElementById('replyTargetLabel').innerText = `"${n.label}"`;
+            document.getElementById('inputModal').style.display = 'flex';
+            commentInputEl.focus();
+            requestAnimationFrame(() => { requestAnimationFrame(() => window.resizeCommentInput()); });
+        };
         window.submitComment = async () => {
-            const v = document.getElementById('commentInput').value.trim(); if (!v) return;
+            const v = commentInputEl.value.replace(/\s+/g, ' ').trim();
+            if (!v) return;
             const nid = "n-" + Date.now();
             const cleanNodes = dataset.nodes.map(n => ({ id: n.id, label: n.label, color: n.color, radius: n.radius, x: n.x, y: n.y, phase: n.phase || 0 }));
             const cleanLinks = dataset.links.map(l => ({ source: l.source.id || l.source, target: l.target.id || l.target }));
