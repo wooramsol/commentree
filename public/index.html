@@ -14,7 +14,6 @@
             --accent-hover: #15803d;
             --accent-soft: rgba(22, 163, 74, 0.1);
             --accent-tint: #ecfdf5;
-            --link-on-light: #166534;
         }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #f9f9f9; font-family: 'Helvetica Neue', Arial, sans-serif; -webkit-user-select: none; user-select: none; touch-action: none; overscroll-behavior: none; }
         header { position: absolute; top: 15px; left: 15px; z-index: 10; pointer-events: none; display: flex; flex-direction: column; align-items: flex-start; max-width: 96%; }
@@ -62,8 +61,8 @@
         .modal-footer { display: flex; justify-content: space-between; align-items: center; }
         .modal-btn { padding: 12px 28px; background: #000; color: white; border: none; border-radius: 25px; cursor: pointer; font-weight: 800; font-size: 1rem; transition: transform 0.1s; }
         .bubble-text { display: flex; justify-content: center; align-items: center; text-align: center; width: 100%; height: 100%; overflow: visible; box-sizing: border-box; pointer-events: none; }
-        .insta-link { color: var(--link-on-light); text-decoration: underline; }
-        .insta-link:hover { color: var(--accent-hover); }
+        .root-social-link { color: var(--accent); display: flex; align-items: center; line-height: 0; }
+        .root-social-link:hover { color: var(--accent-hover); }
         @keyframes heartbeat { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
         .pulse-node circle { animation: heartbeat 1.5s ease-in-out infinite; }
         .zoom-controls { position: fixed; bottom: 25px; right: 25px; display: flex; flex-direction: column; gap: 8px; z-index: 10; pointer-events: auto; }
@@ -100,7 +99,7 @@
     </style>
 </head>
 <body>
-    <div id="tooltip">instagram 바로가기</div>
+    <div id="tooltip">Open Instagram</div>
     <header>
         <div class="nav-box">
             <div class="input-wrapper">
@@ -146,6 +145,9 @@
         }
         function escapeRegExp(s) {
             return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+        function rootExtSvg(px) {
+            return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
         }
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -277,12 +279,15 @@
         function handleHover(elem, d, isOver) {
             const group = d3.select(elem);
             group.select("circle").transition().duration(200).attr("r", isOver ? d.radius * 1.15 : d.radius);
-            const textElem = group.select(".bubble-text > div").transition().duration(200);
             if (d.id === 'root') {
-                const baseFS = (d.radius * 2) / (handle.length * 0.75);
-                textElem.style("font-size", isOver ? `${Math.min(baseFS, d.radius * 0.7) * 1.15}px` : `${Math.min(baseFS, d.radius * 0.7)}px`);
+                const r = d.radius;
+                const len = Math.max(handle.length, 4);
+                const base = Math.min((r * 2) / (len * 0.52), r * 0.88);
+                const sz = isOver ? base * 1.12 : base;
+                group.select(".root-handle-line").transition().duration(200).style("font-size", `${sz}px`);
             } else {
-                textElem.style("font-size", isOver ? `${Math.max(13, d.radius/3.6)}px` : `${Math.max(11, d.radius/4.2)}px`);
+                group.select(".bubble-text > div").transition().duration(200)
+                    .style("font-size", isOver ? `${Math.max(13, d.radius/3.6)}px` : `${Math.max(11, d.radius/4.2)}px`);
             }
         }
 
@@ -302,20 +307,25 @@
                 return nodeG;
             });
             node.select("circle").attr("r", d => d.radius).attr("fill", d => d.color);
-            node.select("foreignObject").attr("width", d => d.radius * 2.2).attr("height", d => d.radius * 2.2).attr("x", d => -d.radius * 1.1).attr("y", d => -d.radius * 1.1).style("pointer-events", d => d.id === 'root' ? "auto" : "none");
+            node.select("foreignObject").attr("width", d => d.radius * 2.2).attr("height", d => d.radius * 2.2).attr("x", d => -d.radius * 1.1).attr("y", d => -d.radius * 1.1).style("pointer-events", "none");
             node.select(".bubble-text").html(d => {
                 if (d.id === "root") {
-                    const cleanH = handle.replace("@", "");
-                    const igPath = encodeURIComponent(cleanH);
-                    const fs = (d.radius * 2) / (handle.length * 0.75);
-                    const igUrl = `https://www.instagram.com/${igPath}/`;
-                    return `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; pointer-events:none; font-weight:900; font-size:${Math.min(fs, d.radius * 0.75)}px; transition: font-size 0.2s;"><a href="${igUrl}" target="_blank" rel="noopener noreferrer" class="insta-link" style="pointer-events:auto; white-space:nowrap; padding: 10px;" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" ontouchend="event.stopPropagation()" onclick="event.stopPropagation()">${escapeHtml(handle)}</a></div>`;
+                    const r = d.radius;
+                    const len = Math.max(handle.length, 4);
+                    const fsPx = Math.min((r * 2) / (len * 0.52), r * 0.88);
+                    const iconPx = Math.min(30, Math.max(17, r * 0.4));
+                    const gap = Math.max(4, Math.round(r * 0.07));
+                    const igUser = encodeURIComponent(handle.replace("@", ""));
+                    const igHref = `https://www.instagram.com/${igUser}/`;
+                    return `<div class="root-bubble-wrap" style="width:100%;height:100%;display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:center;gap:${gap}px;pointer-events:none;box-sizing:border-box;padding:7% 5%;"><span class="root-handle-line" style="flex:1 1 auto;min-width:0;text-align:center;font-weight:900;color:var(--accent);line-height:1.05;letter-spacing:-0.02em;word-break:break-all;overflow-wrap:anywhere;font-size:${fsPx}px;transition:font-size 0.2s;text-shadow:0 0 0.08em rgba(255,255,255,0.95),0 0 0.12em rgba(255,255,255,0.7);">${escapeHtml(handle)}</span><a class="root-social-link root-inline-ext" href="${igHref}" target="_blank" rel="noopener noreferrer" aria-label="Open Instagram" style="pointer-events:auto;flex-shrink:0;" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="event.stopPropagation()">${rootExtSvg(iconPx)}</a></div>`;
                 }
                 return `<div style="padding:12%; width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:${Math.max(11, d.radius/4.2)}px; pointer-events:none; transition: font-size 0.2s;">${escapeHtml(d.label)}</div>`;
             });
-            
+
+            node.selectAll("g.root-ig-icons").remove();
+
             if (window.matchMedia("(hover: hover)").matches) {
-                nodeLayer.selectAll(".insta-link")
+                nodeLayer.selectAll("a.root-social-link")
                     .on("mouseover", function(event) { tooltip.style("display", "block").style("left", (event.pageX + 15) + "px").style("top", (event.pageY + 15) + "px"); })
                     .on("mousemove", function(event) { tooltip.style("left", (event.pageX + 15) + "px").style("top", (event.pageY + 15) + "px"); })
                     .on("mouseout", function() { tooltip.style("display", "none"); });
