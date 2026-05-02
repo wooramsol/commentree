@@ -63,11 +63,21 @@
         .bubble-text { display: flex; justify-content: center; align-items: center; text-align: center; width: 100%; height: 100%; overflow: visible; box-sizing: border-box; pointer-events: none; }
         .root-social-link { color: var(--accent); display: flex; align-items: center; line-height: 0; }
         .root-social-link:hover { color: var(--accent-hover); }
+        .root-bubble-wrap {
+            clip-path: circle(var(--root-clip-r) at 50% 50%);
+        }
         .root-handle-line {
-            white-space: nowrap;
+            min-width: 0;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            line-height: 1.12;
+            text-align: center;
+            white-space: normal;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
             overflow: hidden;
             text-overflow: ellipsis;
-            min-width: 0;
         }
         @keyframes heartbeat { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
         .pulse-node circle { animation: heartbeat 1.5s ease-in-out infinite; }
@@ -187,22 +197,12 @@
         const navInput = document.getElementById("navInput");
         navInput.placeholder = handle;
 
-        function getRootHandleLayout(d) {
-            const r = d.radius;
-            const fo = 2.2 * r;
-            const padX = fo * 0.06;
-            const padY = fo * 0.09;
+        const HANDLE_FONT_PX = 17;
+        const HANDLE_FONT_HOVER_PX = 19;
+
+        function getRootHandleLayout() {
             const gap = 2;
-            const iconPx = Math.min(26, Math.max(14, r * 0.34));
-            const innerW = Math.max(28, fo - 2 * padX - gap - iconPx);
-            const innerH = Math.max(16, fo - 2 * padY);
-            const n = Math.max(String(handle).length, 1);
-            const maxByW = innerW / (n * 0.5);
-            const maxByH = innerH / 1.04;
-            const maxFs = Math.max(12, Math.min(maxByW, maxByH, r * 0.96));
-            const normal = maxFs * 0.99;
-            const hover = Math.min(maxFs, normal * 1.06);
-            return { normal, hover, maxFs, iconPx, gap };
+            return { fontPx: HANDLE_FONT_PX, hoverFontPx: HANDLE_FONT_HOVER_PX, iconPx: HANDLE_FONT_PX, gap };
         }
 
         window.navigateToHandle = async function() {
@@ -277,7 +277,9 @@
             restartSimulation(dataset.nodes.length);
         });
 
-        const svg = d3.select("#chart").append("svg").attr("width", window.innerWidth).attr("height", window.innerHeight);
+        const svg = d3.select("#chart").append("svg")
+            .attr("width", window.innerWidth)
+            .attr("height", window.innerHeight);
         const g = svg.append("g");
         const zoom = d3.zoom().on("zoom", e => g.attr("transform", e.transform));
         svg.call(zoom).on("dblclick.zoom", null);
@@ -302,14 +304,15 @@
 
         function handleHover(elem, d, isOver) {
             const group = d3.select(elem);
-            group.select("circle").transition().duration(200).attr("r", isOver ? d.radius * 1.15 : d.radius);
+            const rVis = isOver ? d.radius * 1.15 : d.radius;
+            group.select("circle").transition().duration(200).attr("r", rVis);
+            const sz = isOver ? HANDLE_FONT_HOVER_PX : HANDLE_FONT_PX;
             if (d.id === 'root') {
-                const { normal, hover } = getRootHandleLayout(d);
-                const sz = isOver ? hover : normal;
+                group.select(".root-bubble-wrap").transition().duration(200).style("--root-clip-r", `${rVis}px`);
                 group.select(".root-handle-line").transition().duration(200).style("font-size", `${sz}px`);
+                group.select(".root-social-link svg").transition().duration(200).attr("width", sz).attr("height", sz);
             } else {
-                group.select(".bubble-text > div").transition().duration(200)
-                    .style("font-size", isOver ? `${Math.max(13, d.radius/3.6)}px` : `${Math.max(11, d.radius/4.2)}px`);
+                group.select(".bubble-text > div").transition().duration(200).style("font-size", `${sz}px`);
             }
         }
 
@@ -329,15 +332,23 @@
                 return nodeG;
             });
             node.select("circle").attr("r", d => d.radius).attr("fill", d => d.color);
-            node.select("foreignObject").attr("width", d => d.radius * 2.2).attr("height", d => d.radius * 2.2).attr("x", d => -d.radius * 1.1).attr("y", d => -d.radius * 1.1).style("pointer-events", "none");
+            node.select("foreignObject")
+                .attr("width", d => d.radius * 2.2)
+                .attr("height", d => d.radius * 2.2)
+                .attr("x", d => -d.radius * 1.1)
+                .attr("y", d => -d.radius * 1.1)
+                .attr("overflow", "hidden")
+                .style("pointer-events", "none")
+                .style("overflow", "hidden");
             node.select(".bubble-text").html(d => {
                 if (d.id === "root") {
-                    const { normal, iconPx, gap } = getRootHandleLayout(d);
+                    const { fontPx, iconPx, gap } = getRootHandleLayout();
                     const igUser = encodeURIComponent(handle.replace("@", ""));
                     const igHref = `https://www.instagram.com/${igUser}/`;
-                    return `<div class="root-bubble-wrap" style="width:100%;height:100%;display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:center;gap:${gap}px;pointer-events:none;box-sizing:border-box;padding:5% 3.5%;"><span class="root-handle-line" style="flex:0 1 auto;min-width:0;max-width:calc(100% - ${iconPx + gap}px);text-align:right;font-weight:900;color:var(--accent);line-height:1.05;letter-spacing:-0.02em;font-size:${normal}px;transition:font-size 0.2s;text-shadow:0 0 0.08em rgba(255,255,255,0.95),0 0 0.12em rgba(255,255,255,0.7);">${escapeHtml(handle)}</span><a class="root-social-link root-inline-ext" href="${igHref}" target="_blank" rel="noopener noreferrer" aria-label="Open Instagram" style="pointer-events:auto;flex-shrink:0;" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="event.stopPropagation()">${rootExtSvg(iconPx)}</a></div>`;
+                    const clipR = `${d.radius}px`;
+                    return `<div class="root-bubble-wrap" style="--root-clip-r:${clipR};width:100%;height:100%;display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:center;gap:${gap}px;pointer-events:none;box-sizing:border-box;padding:6% 5%;"><span class="root-handle-line" style="flex:1 1 auto;min-width:0;max-width:calc(100% - ${iconPx + gap}px);font-weight:900;color:var(--accent);letter-spacing:-0.02em;font-size:${fontPx}px;transition:font-size 0.2s;text-shadow:0 0 0.08em rgba(255,255,255,0.95),0 0 0.12em rgba(255,255,255,0.7);">${escapeHtml(handle)}</span><a class="root-social-link root-inline-ext" href="${igHref}" target="_blank" rel="noopener noreferrer" aria-label="Open Instagram" style="pointer-events:auto;flex-shrink:0;display:flex;align-items:center;" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="event.stopPropagation()">${rootExtSvg(iconPx)}</a></div>`;
                 }
-                return `<div style="padding:12%; width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:${Math.max(11, d.radius/4.2)}px; pointer-events:none; transition: font-size 0.2s;">${escapeHtml(d.label)}</div>`;
+                return `<div style="padding:12%; width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:${HANDLE_FONT_PX}px; pointer-events:none; transition: font-size 0.2s;">${escapeHtml(d.label)}</div>`;
             });
 
             node.selectAll("g.root-ig-icons").remove();
