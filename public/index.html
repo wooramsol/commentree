@@ -330,6 +330,41 @@
             ctx.font = `900 ${fontPx}px ${fontFamily}`;
             return ctx.measureText(str).width;
         }
+        function measureSvgCommentWidth(str, fontPx, fontFamily) {
+            const ctx = document.createElement("canvas").getContext("2d");
+            ctx.font = `bold ${fontPx}px ${fontFamily}`;
+            return ctx.measureText(str).width;
+        }
+        function sanitizeSvgId(id) {
+            return String(id || "n").replace(/[^a-zA-Z0-9_-]/g, "-");
+        }
+        function breakIosCommentLines(text, maxLineWidthPx, fontPx, fontFamily) {
+            const w = (s) => measureSvgCommentWidth(s, fontPx, fontFamily);
+            const str = String(text || "");
+            if (!str.length) return { lines: [""], textW: 0 };
+            if (w(str) <= maxLineWidthPx) return { lines: [str], textW: w(str) };
+            let lo = 1, hi = str.length, best = 0;
+            while (lo <= hi) {
+                const mid = (lo + hi) >> 1;
+                if (w(str.slice(0, mid)) <= maxLineWidthPx) { best = mid; lo = mid + 1; }
+                else hi = mid - 1;
+            }
+            if (best < 1) best = 1;
+            const line1 = str.slice(0, best);
+            const rest = str.slice(best);
+            if (!rest.length) return { lines: [line1], textW: w(line1) };
+            if (w(rest) <= maxLineWidthPx) return { lines: [line1, rest], textW: Math.max(w(line1), w(rest)) };
+            let lo2 = 0, hi2 = rest.length, best2 = 0;
+            while (lo2 <= hi2) {
+                const mid = (lo2 + hi2) >> 1;
+                const cand = rest.slice(0, mid) + "…";
+                if (w(cand) <= maxLineWidthPx) { best2 = mid; lo2 = mid + 1; }
+                else hi2 = mid - 1;
+            }
+            if (best2 < 1 && rest.length) best2 = 1;
+            const line2 = rest.slice(0, best2) + "…";
+            return { lines: [line1, line2], textW: Math.max(w(line1), w(line2)) };
+        }
         function breakRootHandleForIos(handleStr, maxLineWidthPx, fontPx, fontFamily) {
             const userLen = handleStr.replace(/^@/, "").length;
             const useEllipsis = userLen >= ROOT_TRUNC_MIN_USERNAME;
@@ -372,6 +407,17 @@
             let cp = defs.select("#ios-root-clip");
             if (cp.empty()) {
                 cp = defs.append("clipPath").attr("id", "ios-root-clip");
+                cp.append("circle").attr("cx", 0).attr("cy", 0);
+            }
+            cp.select("circle").attr("r", r);
+        }
+        function ensureIosNodeClipPath(svgSel, nodeId, r) {
+            const id = "ios-node-clip-" + sanitizeSvgId(nodeId);
+            let defs = svgSel.select("defs");
+            if (defs.empty()) defs = svgSel.insert("defs", ":first-child");
+            let cp = defs.select("#" + id);
+            if (cp.empty()) {
+                cp = defs.append("clipPath").attr("id", id);
                 cp.append("circle").attr("cx", 0).attr("cy", 0);
             }
             cp.select("circle").attr("r", r);
@@ -439,6 +485,29 @@
                 .on("click", function(e) { e.stopPropagation(); })
                 .on("touchend", function(e) { e.stopPropagation(); });
             appendRootExtIconSvg(a, iconPx);
+        }
+        function renderIosCommentLabel(gl, d) {
+            const fontPx = nodeCommentFontPx(d.radius, d.label);
+            const fontFamily = "Helvetica Neue, Arial, sans-serif";
+            const pad = d.radius * 0.12;
+            const maxLineW = Math.max(fontPx * 2, d.radius * 2.2 - 2 * pad);
+            const { lines } = breakIosCommentLines(d.label, maxLineW, fontPx, fontFamily);
+            const lh = fontPx * 1.18;
+            const blockH = lines.length * lh;
+            gl.selectAll("*").remove();
+            gl.attr("pointer-events", "none");
+            gl.attr("clip-path", `url(#ios-node-clip-${sanitizeSvgId(d.id)})`);
+            const t = gl.append("text")
+                .attr("pointer-events", "none")
+                .attr("x", 0)
+                .attr("y", -blockH / 2 + lh * 0.88)
+                .attr("text-anchor", "middle")
+                .attr("fill", "#111")
+                .attr("font-weight", 700)
+                .attr("font-size", fontPx)
+                .attr("font-family", fontFamily);
+            t.append("tspan").attr("x", 0).attr("dy", 0).text(lines[0] || "");
+            if (lines[1]) t.append("tspan").attr("x", 0).attr("dy", lh).text(lines[1]);
         }
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -583,7 +652,7 @@
         let isTimerRunning = false; 
 
         function update() {
-            const useIosRoot = isLikelyIOS();
+            const useIosSvgLabels = isLikelyIOS();
             linkLayer.selectAll("line").data(dataset.links, d => (d.source.id || d.source) + "-" + (d.target.id || d.target)).join("line").attr("stroke", "#000").attr("stroke-width", 2);
             const node = nodeLayer.selectAll(".node").data(dataset.nodes, d => d.id).join(enter => {
                 const nodeG = enter.append("g").attr("class", "node")
@@ -610,16 +679,22 @@
                 }
             });
             node.each(function(d) {
-                if (d.id !== "root" || !useIosRoot) return;
+                if (!useIosSvgLabels) return;
                 const core = d3.select(this).select(".node-core");
                 core.select("foreignObject").remove();
-                ensureIosRootClip(svg, d.radius);
-                let gl = core.select("g.ios-root-label");
-                if (gl.empty()) gl = core.append("g").attr("class", "ios-root-label");
-                renderIosRootLabel(gl, d);
+                core.select("g.ios-root-label").remove();
+                let gl = core.select("g.ios-svg-label");
+                if (gl.empty()) gl = core.append("g").attr("class", "ios-svg-label");
+                if (d.id === "root") {
+                    ensureIosRootClip(svg, d.radius);
+                    renderIosRootLabel(gl, d);
+                } else {
+                    ensureIosNodeClipPath(svg, d.id, d.radius);
+                    renderIosCommentLabel(gl, d);
+                }
             });
             node.select(".node-core circle").attr("r", d => d.radius).attr("fill", d => d.color);
-            const foBacked = node.filter(d => !(d.id === "root" && useIosRoot));
+            const foBacked = node.filter(() => !useIosSvgLabels);
             foBacked.select(".node-core foreignObject")
                 .attr("width", d => d.radius * 2.2)
                 .attr("height", d => d.radius * 2.2)
@@ -661,16 +736,13 @@
                 isTimerRunning = true;
                 d3.timer(() => {
                     const t = Date.now() / 1000;
-                    const ios = isLikelyIOS();
                     nodeLayer.selectAll(".node").each(function(d) {
                         let tx = (d.fx !== null && d.fx !== undefined) ? d.fx : d.x;
                         let ty = (d.fy !== null && d.fy !== undefined) ? d.fy : d.y;
                         d.displayX = tx + (Math.cos(t * 2.5 + (d.phase || 0)) * 5);
                         d.displayY = ty + (Math.sin(t * 3.0 + (d.phase || 0)) * 8);
                         d3.select(this).attr("transform", `translate(${d.displayX},${d.displayY})`);
-                        const sRaw = typeof d._hoverScale === "number" ? d._hoverScale : 1;
-                        /* WebKit: scale on .node-core breaks foreignObject HTML — skip scale for FO nodes on iOS; root uses SVG there so keep hover scale. */
-                        const s = ios && d.id !== "root" ? 1 : sRaw;
+                        const s = typeof d._hoverScale === "number" ? d._hoverScale : 1;
                         d3.select(this).select(".node-core").attr("transform", `scale(${s})`);
                     });
                     linkLayer.selectAll("line").attr("x1", d => d.source.displayX || d.source.x).attr("y1", d => d.source.displayY || d.source.y).attr("x2", d => d.target.displayX || d.target.x).attr("y2", d => d.target.displayY || d.target.y);
