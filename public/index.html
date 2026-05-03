@@ -659,20 +659,21 @@
 
             if (!isTimerRunning) {
                 isTimerRunning = true;
-                d3.timer(() => { 
+                d3.timer(() => {
                     const t = Date.now() / 1000;
-                    nodeLayer.selectAll(".node").attr("transform", d => { 
-                        let tx = (d.fx !== null && d.fx !== undefined) ? d.fx : d.x; 
-                        let ty = (d.fy !== null && d.fy !== undefined) ? d.fy : d.y; 
-                        d.displayX = tx + (Math.cos(t * 2.5 + (d.phase||0)) * 5); 
-                        d.displayY = ty + (Math.sin(t * 3.0 + (d.phase||0)) * 8); 
-                        return `translate(${d.displayX}, ${d.displayY})`; 
-                    }); 
-                    nodeLayer.selectAll(".node-core").attr("transform", d => {
-                        const s = typeof d._hoverScale === "number" ? d._hoverScale : 1;
-                        return `scale(${s})`;
+                    const ios = isLikelyIOS();
+                    nodeLayer.selectAll(".node").each(function(d) {
+                        let tx = (d.fx !== null && d.fx !== undefined) ? d.fx : d.x;
+                        let ty = (d.fy !== null && d.fy !== undefined) ? d.fy : d.y;
+                        d.displayX = tx + (Math.cos(t * 2.5 + (d.phase || 0)) * 5);
+                        d.displayY = ty + (Math.sin(t * 3.0 + (d.phase || 0)) * 8);
+                        d3.select(this).attr("transform", `translate(${d.displayX},${d.displayY})`);
+                        const sRaw = typeof d._hoverScale === "number" ? d._hoverScale : 1;
+                        /* WebKit: scale on .node-core breaks foreignObject HTML — skip scale for FO nodes on iOS; root uses SVG there so keep hover scale. */
+                        const s = ios && d.id !== "root" ? 1 : sRaw;
+                        d3.select(this).select(".node-core").attr("transform", `scale(${s})`);
                     });
-                    linkLayer.selectAll("line").attr("x1", d => d.source.displayX || d.source.x).attr("y1", d => d.source.displayY || d.source.y).attr("x2", d => d.target.displayX || d.target.x).attr("y2", d => d.target.displayY || d.target.y); 
+                    linkLayer.selectAll("line").attr("x1", d => d.source.displayX || d.source.x).attr("y1", d => d.source.displayY || d.source.y).attr("x2", d => d.target.displayX || d.target.x).attr("y2", d => d.target.displayY || d.target.y);
                 });
             }
         }
