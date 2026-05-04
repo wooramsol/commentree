@@ -16,16 +16,19 @@
             --accent-tint: #ecfdf5;
         }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #f9f9f9; font-family: 'Helvetica Neue', Arial, sans-serif; -webkit-user-select: none; user-select: none; touch-action: none; overscroll-behavior: none; }
-        header { position: absolute; top: 15px; left: 15px; z-index: 10; pointer-events: none; display: flex; flex-direction: column; align-items: flex-start; max-width: 96%; }
+        /* Header above full-screen chart SVG so autocomplete/dropdown receive taps (not a bug in “intent” — stacking). */
+        header { position: absolute; top: 15px; left: 15px; z-index: 100; pointer-events: none; display: flex; flex-direction: column; align-items: flex-start; max-width: 96%; }
         .nav-box { position: relative; z-index: 2; background: rgba(255, 255, 255, 0.9); padding: 10px 14px; border-radius: 12px; backdrop-filter: blur(5px); box-shadow: 0 4px 15px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 8px; width: 380px; max-width: 100%; box-sizing: border-box; pointer-events: auto; }
+        #chart { position: relative; z-index: 0; }
         .input-wrapper { display: flex; align-items: center; width: 100%; justify-content: space-between; position: relative; }
         .domain-text { font-weight: 800; color: #000; font-size: 1.05rem; letter-spacing: -0.5px; white-space: nowrap; }
         #navInput { border: none; border-bottom: 2px solid #ddd; background: transparent; font-size: 1.05rem; font-weight: bold; color: #000; width: 100%; padding: 0 4px; margin: 0 6px 0 2px; outline: none; transition: border-color 0.3s; flex-grow: 1; -webkit-user-select: text; user-select: text; }
         #navInput:focus { border-bottom: 2px solid var(--accent); }
         #goBtn { display: none; background: var(--accent); border: none; font-size: 0.85rem; font-weight: bold; color: #fff; padding: 6px 12px; border-radius: 20px; cursor: pointer; transition: background 0.2s; flex-shrink: 0; }
         #goBtn:hover { background: var(--accent-hover); }
-        .autocomplete-container { position: absolute; top: 100%; left: 0; width: 100%; background: white; border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,0.15); max-height: 180px; overflow-y: auto; z-index: 20; display: none; flex-direction: column; margin-top: 8px; padding: 4px; box-sizing: border-box; }
-        .autocomplete-item { padding: 8px 12px; cursor: pointer; font-size: 0.95rem; font-weight: 500; color: #333; border-radius: 6px; transition: background 0.2s; word-break: break-all; }
+        .autocomplete-container { position: absolute; top: 100%; left: 0; width: 100%; background: white; border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,0.15); max-height: 180px; overflow-y: auto; z-index: 30; display: none; flex-direction: column; margin-top: 8px; padding: 4px; box-sizing: border-box; }
+        .autocomplete-item { padding: 8px 12px; cursor: pointer; font-size: 0.95rem; font-weight: 500; color: #333; border-radius: 6px; transition: background 0.2s; word-break: break-all; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+        a.autocomplete-item { display: block; text-decoration: none; color: inherit; box-sizing: border-box; }
         .autocomplete-item:hover { background: var(--accent); color: white; }
         .match-highlight { color: var(--accent); font-weight: 900; }
         .dropdown-btn { background: #f0f0f0; border: none; border-radius: 6px; padding: 6px 10px; font-size: 0.85rem; font-weight: bold; color: #444; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; }
@@ -157,7 +160,7 @@
         .root-handle-line--clip { text-overflow: clip; }
         @keyframes heartbeat { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
         .pulse-node circle { animation: heartbeat 1.5s ease-in-out infinite; }
-        .zoom-controls { position: fixed; bottom: 25px; right: 25px; display: flex; flex-direction: column; gap: 8px; z-index: 10; pointer-events: auto; }
+        .zoom-controls { position: fixed; bottom: 25px; right: 25px; display: flex; flex-direction: column; gap: 8px; z-index: 99; pointer-events: auto; }
         .zoom-controls button { width: 50px; height: 50px; background: white; border: 1px solid #ddd; border-radius: 15px; font-size: 1.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         .chart-hint {
             position: relative;
@@ -593,7 +596,8 @@
                 const labelRaw = h.toLowerCase() === '@wooramsol' ? h + '👨‍💻' : h;
                 const safe = escapeHtml(labelRaw);
                 const hl = cleanV ? safe.replace(new RegExp(`(${escapeRegExp(cleanV)})`, 'gi'), '<span class="match-highlight">$1</span>') : safe;
-                return `<div class="autocomplete-item" onmousedown="window.location.href=${JSON.stringify('/' + h)}">${hl}</div>`;
+                const hrefPath = '/' + h;
+                return `<a class="autocomplete-item" href="${escapeHtml(hrefPath)}">${hl}</a>`;
             }).join('');
             list.style.display = filtered.length ? 'flex' : 'none';
             document.getElementById('goBtn').style.display = (!cachedHandles.some(h=>h.toLowerCase()==='@'+cleanV) && igRegex.test(cleanV)) ? 'block' : 'none';
