@@ -332,7 +332,7 @@
             return typeof end === "object" && end != null && end.id != null ? end.id : end;
         }
         const NODE_STROKE_WIDTH = 2;
-        const NODE_STROKE_WIDTH_CHAIN = 4;
+        const NODE_STROKE_WIDTH_CHAIN = 6;
         /** Leaf → root inclusive (parent is link.source, child is link.target). */
         function pathNodeIdsFromLeaf(leafId, links) {
             const ids = new Set();
@@ -727,6 +727,7 @@
         const linkLayer = g.append("g"), nodeLayer = g.append("g");
         const tooltip = d3.select("#tooltip");
         let chainHoverPathIds = null;
+        let activeDragNodeId = null;
 
         const simulation = d3.forceSimulation()
             .force("link", d3.forceLink().id(d => d.id))
@@ -764,7 +765,22 @@
                 const nodeG = enter.append("g").attr("class", "node")
                     .on("click", (event, d) => { if (event.defaultPrevented) return; event.stopPropagation(); openModal(d); })
                     .on("contextmenu", (event, d) => { event.preventDefault(); if (!isAdmin) return; if (d.id === "root") { openDeleteTreeModal(handle); return; } openDeleteModal(d); })
-                    .call(d3.drag().on("start", function(e, d) { chainHoverPathIds = null; if (!e.active) simulation.alphaTarget(0.2).restart(); d.fx = d.x; d.fy = d.y; d3.select(this).classed("dragging", true); tooltip.style("display", "none"); d3.select(this).select(".node-hint-pop").interrupt().style("opacity", 0); }).on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; }).on("end", function(e, d) { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; d3.select(this).classed("dragging", false); }));
+                    .call(d3.drag().on("start", function(e, d) {
+                        activeDragNodeId = d.id;
+                        chainHoverPathIds = pathNodeIdsFromLeaf(d.id, dataset.links);
+                        if (!e.active) simulation.alphaTarget(0.2).restart();
+                        d.fx = d.x; d.fy = d.y;
+                        d3.select(this).classed("dragging", true);
+                        tooltip.style("display", "none");
+                        d3.select(this).select(".node-hint-pop").interrupt().style("opacity", 0);
+                    }).on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; }).on("end", function(e, d) {
+                        if (!e.active) simulation.alphaTarget(0);
+                        d.fx = null; d.fy = null;
+                        d3.select(this).classed("dragging", false);
+                        activeDragNodeId = null;
+                        chainHoverPathIds = null;
+                        handleHover(this, d, false);
+                    }));
                 const core = nodeG.append("g").attr("class", "node-core");
                 core.append("circle").attr("stroke", "#000").attr("stroke-opacity", 1).attr("stroke-width", NODE_STROKE_WIDTH);
                 core.append("foreignObject").append("xhtml:div").attr("class", "bubble-text");
@@ -780,6 +796,7 @@
                     d3.select(this).select(".node-hint-pop").interrupt().style("opacity", 1);
                 })
                 .on("mouseleave.nodehint", function(event, d) {
+                    if (activeDragNodeId) return;
                     chainHoverPathIds = null;
                     handleHover(this, d, false);
                     d3.select(this).select(".node-hint-pop").interrupt().style("opacity", 0);
@@ -884,9 +901,9 @@
                         d.displayX = tx + (Math.cos(t * 2.5 + (d.phase || 0)) * 5);
                         d.displayY = ty + (Math.sin(t * 3.0 + (d.phase || 0)) * 8);
                         d3.select(this).attr("transform", `translate(${d.displayX},${d.displayY})`);
-                        const s = typeof d._hoverScale === "number" ? d._hoverScale : 1;
-                        d3.select(this).select(".node-core").attr("transform", `scale(${s})`);
                         const path = chainHoverPathIds;
+                        const s = path && path.has(d.id) ? NODE_HOVER_SCALE : (typeof d._hoverScale === "number" ? d._hoverScale : 1);
+                        d3.select(this).select(".node-core").attr("transform", `scale(${s})`);
                         d3.select(this).select(".node-core circle")
                             .attr("stroke", "#000")
                             .attr("stroke-opacity", 1)
@@ -937,6 +954,7 @@
 
         let selNode;
         window.openModal = (n) => {
+            activeDragNodeId = null;
             chainHoverPathIds = null;
             nodeLayer.selectAll(".node-hint-pop").interrupt().style("opacity", 0);
             selNode = n;
