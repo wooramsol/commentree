@@ -24,15 +24,17 @@
         .domain-text { font-weight: 800; color: #000; font-size: 1.05rem; letter-spacing: -0.5px; white-space: nowrap; }
         #navInput { border: none; border-bottom: 2px solid #ddd; background: transparent; font-size: 1.05rem; font-weight: bold; color: #000; width: 100%; padding: 0 4px; margin: 0 6px 0 2px; outline: none; transition: border-color 0.3s; flex-grow: 1; -webkit-user-select: text; user-select: text; }
         #navInput:focus { border-bottom: 2px solid var(--accent); }
-        #goBtn { display: none; background: var(--accent); border: none; font-size: 0.85rem; font-weight: bold; color: #fff; padding: 6px 12px; border-radius: 20px; cursor: pointer; transition: background 0.2s; flex-shrink: 0; }
+        #goBtn { display: none; background: var(--accent); border: none; font-size: 0.85rem; font-weight: bold; color: #fff; padding: 6px 12px; border-radius: 20px; cursor: pointer; transition: background 0.2s, transform 0.1s; flex-shrink: 0; box-shadow: none; }
         #goBtn:hover { background: var(--accent-hover); }
+        #goBtn:active { transform: scale(0.98); }
         .autocomplete-container { position: absolute; top: 100%; left: 0; width: 100%; background: white; border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,0.15); max-height: 180px; overflow-y: auto; z-index: 30; display: none; flex-direction: column; margin-top: 8px; padding: 4px; box-sizing: border-box; }
         .autocomplete-item { padding: 8px 12px; cursor: pointer; font-size: 0.95rem; font-weight: 500; color: #333; border-radius: 6px; transition: background 0.2s; word-break: break-all; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
         a.autocomplete-item { display: block; text-decoration: none; color: inherit; box-sizing: border-box; }
         .autocomplete-item:hover { background: var(--accent); color: white; }
         .match-highlight { color: var(--accent); font-weight: 900; }
-        .dropdown-btn { background: #f0f0f0; border: none; border-radius: 6px; padding: 6px 10px; font-size: 0.85rem; font-weight: bold; color: #444; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; }
+        .dropdown-btn { background: #f0f0f0; border: none; border-radius: 6px; padding: 6px 10px; font-size: 0.85rem; font-weight: bold; color: #444; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s, transform 0.1s; box-shadow: none; }
         .dropdown-btn:hover { background: #e8e8e8; }
+        .dropdown-btn:active { transform: scale(0.98); }
         #dropdownArrow {
             display: inline-flex;
             align-items: center;
@@ -55,7 +57,7 @@
         .node { cursor: cell; pointer-events: all; }
         /* iOS Safari: translate+scale on same g as foreignObject can detach HTML — scale lives on .node-core only */
         #tooltip { position: absolute; display: none; background: rgba(0,0,0,0.8); color: #fff; padding: 6px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; pointer-events: none; z-index: 1000; white-space: nowrap; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
-        #inputModal, #deleteModal, #deleteTreeModal, #adminModal, #logoutModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); z-index: 100; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        #inputModal, #deleteModal, #deleteTreeModal, #adminModal, #logoutModal, #createTreeModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); z-index: 100; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
         .modal-content { background: rgba(255, 255, 255, 0.98); padding: 20px; border-radius: 20px; box-shadow: 0 25px 50px rgba(0,0,0,0.2); width: 92%; max-width: 400px; text-align: left; }
         .reply-context {
             font-size: 0.8rem;
@@ -100,7 +102,14 @@
         }
         .modal-disclaimer { font-size: 0.75rem; color: #888; margin: 0 0 10px 0; line-height: 1.4; }
         .modal-footer { display: flex; justify-content: space-between; align-items: center; }
-        .modal-btn { padding: 12px 28px; background: #000; color: white; border: none; border-radius: 25px; cursor: pointer; font-weight: 800; font-size: 1rem; transition: transform 0.1s; }
+        .modal-btn { padding: 12px 28px; background: #000; color: white; border: none; border-radius: 25px; cursor: pointer; font-weight: 800; font-size: 1rem; transition: transform 0.1s, background 0.2s, filter 0.2s; box-shadow: none; }
+        .modal-btn:active { transform: scale(0.98); }
+        .modal-btn:not(.modal-btn-secondary):not(.modal-btn-accent):hover { filter: brightness(1.12); }
+        .modal-btn.modal-btn-accent { background: var(--accent); color: #fff; }
+        .modal-btn.modal-btn-accent:hover { background: var(--accent-hover); filter: none; }
+        .modal-btn.modal-btn-secondary { background: #e5e5e5; color: #333; }
+        .modal-btn.modal-btn-secondary:hover { background: #dcdcdc; filter: none; }
+        .modal-btn.modal-btn-secondary:active { background: #cfcfcf; }
         .bubble-text {
             display: flex;
             justify-content: center;
@@ -159,7 +168,9 @@
         @keyframes heartbeat { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
         .pulse-node circle { animation: heartbeat 1.5s ease-in-out infinite; }
         .zoom-controls { position: fixed; bottom: 25px; right: 25px; display: flex; flex-direction: column; gap: 8px; z-index: 99; pointer-events: auto; }
-        .zoom-controls button { width: 50px; height: 50px; background: white; border: 1px solid #ddd; border-radius: 15px; font-size: 1.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .zoom-controls button { width: 50px; height: 50px; background: white; border: 1px solid #ddd; border-radius: 15px; font-size: 1.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s, transform 0.1s, border-color 0.2s; box-shadow: none; }
+        .zoom-controls button:hover { background: #f5f5f5; }
+        .zoom-controls button:active { transform: scale(0.98); }
         .chart-hint {
             position: relative;
             z-index: 0;
@@ -225,6 +236,19 @@
     <div id="deleteTreeModal" onclick="if(event.target===this) closeDeleteTreeModal()"><div class="modal-content" style="text-align:center"><h3>Delete Entire Tree?</h3><p id="treeToDeleteName" style="font-weight:bold"></p><button class="modal-btn" style="background:#d9534f" onclick="submitDeleteTree()">Delete</button></div></div>
     <div id="adminModal" onclick="if(event.target===this) closeAdminModal()"><div class="modal-content" style="text-align:center"><h3>Admin Login</h3><input type="email" id="adminEmail" class="modal-input" placeholder="Email"><input type="password" id="adminPassword" class="modal-input" placeholder="Password"><button class="modal-btn" onclick="submitAdminLogin()">Login</button></div></div>
     <div id="logoutModal" onclick="if(event.target===this) closeLogoutModal()"><div class="modal-content" style="text-align:center"><h3>Logout?</h3><button class="modal-btn" onclick="submitLogout()">Logout</button></div></div>
+
+    <div id="createTreeModal" onclick="if(event.target===this) closeCreateTreeModal()">
+        <div class="modal-content">
+            <h3 style="margin:0 0 10px 0;font-size:1.1rem">Create this commentree?</h3>
+            <p id="createTreeHandleName" style="font-weight:800;color:var(--accent);margin:0 0 14px 0;word-break:break-all"></p>
+            <p class="modal-disclaimer" style="margin-bottom:10px">Please double-check that this handle is correct and matches the Instagram account you intend. Typos cannot be fixed by renaming after creation.</p>
+            <p class="modal-disclaimer" style="margin-bottom:18px">Once you create it, <strong>you cannot delete this commentree yourself</strong>. Only proceed if you are sure.</p>
+            <div class="modal-footer" style="justify-content:flex-end;gap:10px">
+                <button type="button" class="modal-btn modal-btn-secondary" onclick="closeCreateTreeModal()">Cancel</button>
+                <button type="button" class="modal-btn modal-btn-accent" onclick="confirmCreateTree()">Create</button>
+            </div>
+        </div>
+    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
@@ -542,6 +566,7 @@
         const navInput = document.getElementById("navInput");
         navInput.placeholder = handle;
 
+        window.pendingCreateHandle = null;
         window.navigateToHandle = async function() {
             let val = navInput.value.trim().toLowerCase();
             if(!val) return;
@@ -552,10 +577,28 @@
             const checkRef = doc(db, "trees", val);
             const snap = await getDoc(checkRef);
             if(!snap.exists()) {
-                // 💡 루트 노드 반지름 65로 설정 (일반 노드 55보다 조금 큰 사이즈)
+                window.pendingCreateHandle = val;
+                document.getElementById('createTreeHandleName').textContent = val;
+                document.getElementById('createTreeModal').style.display = 'flex';
+                return;
+            }
+            window.location.href = "/" + val;
+        };
+        window.closeCreateTreeModal = function() {
+            window.pendingCreateHandle = null;
+            document.getElementById('createTreeModal').style.display = 'none';
+        };
+        window.confirmCreateTree = async function() {
+            const val = window.pendingCreateHandle;
+            if (!val) return window.closeCreateTreeModal();
+            const checkRef = doc(db, "trees", val);
+            const snap = await getDoc(checkRef);
+            if (!snap.exists()) {
                 await setDoc(checkRef, { nodes: [{ id: "root", label: val, color: "#ffffff", baseRadius: NODE_BASE_RADIUS_ROOT, radius: NODE_BASE_RADIUS_ROOT, x: window.innerWidth/2, y: window.innerHeight/2, phase: Math.random()*Math.PI*2 }], links: [] });
                 await setDoc(doc(db, "metadata", "handles"), { list: arrayUnion(val) }, { merge: true });
             }
+            window.pendingCreateHandle = null;
+            document.getElementById('createTreeModal').style.display = 'none';
             window.location.href = "/" + val;
         };
 
