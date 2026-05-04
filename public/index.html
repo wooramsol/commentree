@@ -206,6 +206,7 @@
             height: 100%;
             padding: 8% 10%;
             background: rgba(255, 255, 255, 0.78);
+            opacity: 1;
             border-radius: 50%;
             display: flex;
             flex-direction: column;
@@ -271,8 +272,7 @@
         <div class="modal-content">
             <h3 style="margin:0 0 10px 0;font-size:1.1rem">Create this commentree?</h3>
             <p id="createTreeHandleName" style="font-weight:800;color:var(--accent);margin:0 0 14px 0;word-break:break-all"></p>
-            <p class="modal-disclaimer" style="margin-bottom:10px">Please double-check that this handle is correct and matches the Instagram account you intend. Typos cannot be fixed by renaming after creation.</p>
-            <p class="modal-disclaimer" style="margin-bottom:18px">Once you create it, <strong>you cannot delete this commentree yourself</strong>. Only proceed if you are sure.</p>
+            <p class="modal-disclaimer" style="margin-bottom:18px">After it’s created, you won’t be able to edit or delete it.</p>
             <div class="modal-footer" style="justify-content:flex-end;gap:10px">
                 <button type="button" class="modal-btn modal-btn-secondary" onclick="closeCreateTreeModal()">Cancel</button>
                 <button type="button" class="modal-btn modal-btn-accent" onclick="confirmCreateTree()">Create</button>
@@ -330,6 +330,22 @@
         const NODE_RADIUS_MAX_SCALE = 10;
         function linkEndpointId(end) {
             return typeof end === "object" && end != null && end.id != null ? end.id : end;
+        }
+        const NODE_STROKE_WIDTH = 2;
+        const NODE_STROKE_WIDTH_CHAIN = 4;
+        /** Leaf → root inclusive (parent is link.source, child is link.target). */
+        function pathNodeIdsFromLeaf(leafId, links) {
+            const ids = new Set();
+            let cur = leafId;
+            for (let i = 0; i < 512; i++) {
+                ids.add(cur);
+                const up = links.find(l => linkEndpointId(l.target) === cur);
+                if (!up) break;
+                const p = linkEndpointId(up.source);
+                if (ids.has(p)) break;
+                cur = p;
+            }
+            return ids;
         }
         function directChildCount(nodeId, links) {
             return links.filter(l => linkEndpointId(l.source) === nodeId).length;
@@ -477,8 +493,8 @@
             }
             cp.select("circle").attr("r", r);
         }
-        /** Hover hint clipped to the node circle through the outer edge of the black stroke (stroke-width 2). */
-        function ensureNodeHintClip(svgSel, nodeId, r) {
+        /** Hint clip: inside the stroke ring so the overlay doesn’t sit on the black outline (strokeW = active outline width). */
+        function ensureNodeHintClip(svgSel, nodeId, r, strokeW) {
             const id = "hint-node-clip-" + sanitizeSvgId(nodeId);
             let defs = svgSel.select("defs");
             if (defs.empty()) defs = svgSel.insert("defs", ":first-child");
@@ -487,8 +503,8 @@
                 cp = defs.append("clipPath").attr("id", id);
                 cp.append("circle").attr("cx", 0).attr("cy", 0);
             }
-            const strokeW = 2;
-            const clipR = Math.max(r + strokeW / 2, 2);
+            const sw = typeof strokeW === "number" && strokeW > 0 ? strokeW : NODE_STROKE_WIDTH;
+            const clipR = Math.max(r - sw / 2 - 0.5, 2);
             cp.select("circle").attr("r", clipR);
             return id;
         }
@@ -710,6 +726,7 @@
         svg.call(zoom).on("dblclick.zoom", null);
         const linkLayer = g.append("g"), nodeLayer = g.append("g");
         const tooltip = d3.select("#tooltip");
+        let chainHoverPathIds = null;
 
         const simulation = d3.forceSimulation()
             .force("link", d3.forceLink().id(d => d.id))
@@ -742,14 +759,14 @@
 
         function update() {
             const useIosSvgLabels = isLikelyIOS();
-            linkLayer.selectAll("line").data(dataset.links, d => (d.source.id || d.source) + "-" + (d.target.id || d.target)).join("line").attr("stroke", "#000").attr("stroke-width", 2);
+            linkLayer.selectAll("line").data(dataset.links, d => (d.source.id || d.source) + "-" + (d.target.id || d.target)).join("line").attr("stroke", "#000").attr("stroke-opacity", 1).attr("stroke-width", NODE_STROKE_WIDTH);
             const node = nodeLayer.selectAll(".node").data(dataset.nodes, d => d.id).join(enter => {
                 const nodeG = enter.append("g").attr("class", "node")
                     .on("click", (event, d) => { if (event.defaultPrevented) return; event.stopPropagation(); openModal(d); })
                     .on("contextmenu", (event, d) => { event.preventDefault(); if (!isAdmin) return; if (d.id === "root") { openDeleteTreeModal(handle); return; } openDeleteModal(d); })
-                    .call(d3.drag().on("start", function(e, d) { if (!e.active) simulation.alphaTarget(0.2).restart(); d.fx = d.x; d.fy = d.y; d3.select(this).classed("dragging", true); tooltip.style("display", "none"); d3.select(this).select(".node-hint-pop").interrupt().style("opacity", 0); }).on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; }).on("end", function(e, d) { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; d3.select(this).classed("dragging", false); }));
+                    .call(d3.drag().on("start", function(e, d) { chainHoverPathIds = null; if (!e.active) simulation.alphaTarget(0.2).restart(); d.fx = d.x; d.fy = d.y; d3.select(this).classed("dragging", true); tooltip.style("display", "none"); d3.select(this).select(".node-hint-pop").interrupt().style("opacity", 0); }).on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; }).on("end", function(e, d) { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; d3.select(this).classed("dragging", false); }));
                 const core = nodeG.append("g").attr("class", "node-core");
-                core.append("circle").attr("stroke", "#000").attr("stroke-width", 2);
+                core.append("circle").attr("stroke", "#000").attr("stroke-opacity", 1).attr("stroke-width", NODE_STROKE_WIDTH);
                 core.append("foreignObject").append("xhtml:div").attr("class", "bubble-text");
                 const hintG = core.append("g").attr("class", "node-hint-pop").style("opacity", 0).style("pointer-events", "none");
                 hintG.append("foreignObject").attr("class", "node-hint-fo").append("xhtml:div").attr("xmlns", "http://www.w3.org/1999/xhtml").attr("class", "node-hint-pop-inner").html('<span class="node-hint-plus">+</span><span class="node-hint-word">comment</span>');
@@ -757,13 +774,15 @@
             });
             node
                 .on("mouseenter.nodehint", function(event, d) {
+                    chainHoverPathIds = pathNodeIdsFromLeaf(d.id, dataset.links);
                     handleHover(this, d, true);
                     if (!window.matchMedia("(hover: hover)").matches) return;
-                    d3.select(this).select(".node-hint-pop").interrupt().transition().duration(100).style("opacity", 1);
+                    d3.select(this).select(".node-hint-pop").interrupt().style("opacity", 1);
                 })
                 .on("mouseleave.nodehint", function(event, d) {
+                    chainHoverPathIds = null;
                     handleHover(this, d, false);
-                    d3.select(this).select(".node-hint-pop").interrupt().transition().duration(120).style("opacity", 0);
+                    d3.select(this).select(".node-hint-pop").interrupt().style("opacity", 0);
                 });
             node.each(function() {
                 const g = d3.select(this);
@@ -802,12 +821,15 @@
                     renderIosCommentLabel(gl, d);
                 }
             });
-            node.select(".node-core circle").attr("r", d => d.radius).attr("fill", d => d.color);
+            node.select(".node-core circle").attr("r", d => d.radius).attr("fill", d => d.color).attr("stroke", "#000").attr("stroke-opacity", 1).attr("stroke-width", d => {
+                const path = chainHoverPathIds;
+                return path && path.has(d.id) ? NODE_STROKE_WIDTH_CHAIN : NODE_STROKE_WIDTH;
+            });
             node.select(".node-core .node-hint-pop").each(function(d) {
                 const r = typeof d.radius === "number" && d.radius > 0 ? d.radius : (d.id === "root" ? NODE_BASE_RADIUS_ROOT : NODE_BASE_RADIUS_COMMENT);
                 const side = r * 2.2;
                 const hintG = d3.select(this);
-                hintG.attr("clip-path", `url(#${ensureNodeHintClip(svg, d.id, r)})`);
+                hintG.attr("clip-path", `url(#${ensureNodeHintClip(svg, d.id, r, NODE_STROKE_WIDTH_CHAIN)})`);
                 hintG.select("foreignObject")
                     .attr("width", side).attr("height", side)
                     .attr("x", -r * 1.1).attr("y", -r * 1.1);
@@ -864,8 +886,25 @@
                         d3.select(this).attr("transform", `translate(${d.displayX},${d.displayY})`);
                         const s = typeof d._hoverScale === "number" ? d._hoverScale : 1;
                         d3.select(this).select(".node-core").attr("transform", `scale(${s})`);
+                        const path = chainHoverPathIds;
+                        d3.select(this).select(".node-core circle")
+                            .attr("stroke", "#000")
+                            .attr("stroke-opacity", 1)
+                            .attr("stroke-width", path && path.has(d.id) ? NODE_STROKE_WIDTH_CHAIN : NODE_STROKE_WIDTH);
                     });
-                    linkLayer.selectAll("line").attr("x1", d => d.source.displayX || d.source.x).attr("y1", d => d.source.displayY || d.source.y).attr("x2", d => d.target.displayX || d.target.x).attr("y2", d => d.target.displayY || d.target.y);
+                    linkLayer.selectAll("line")
+                        .attr("x1", d => d.source.displayX || d.source.x)
+                        .attr("y1", d => d.source.displayY || d.source.y)
+                        .attr("x2", d => d.target.displayX || d.target.x)
+                        .attr("y2", d => d.target.displayY || d.target.y)
+                        .attr("stroke", "#000")
+                        .attr("stroke-opacity", 1)
+                        .attr("stroke-width", d => {
+                            const path = chainHoverPathIds;
+                            if (!path) return NODE_STROKE_WIDTH;
+                            const s = linkEndpointId(d.source), t = linkEndpointId(d.target);
+                            return path.has(s) && path.has(t) ? NODE_STROKE_WIDTH_CHAIN : NODE_STROKE_WIDTH;
+                        });
                 });
             }
         }
@@ -898,6 +937,7 @@
 
         let selNode;
         window.openModal = (n) => {
+            chainHoverPathIds = null;
             nodeLayer.selectAll(".node-hint-pop").interrupt().style("opacity", 0);
             selNode = n;
             document.getElementById('replyTargetLabel').innerText = `"${n.label}"`;
