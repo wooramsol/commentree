@@ -790,6 +790,7 @@
             });
             node
                 .on("mouseenter.nodehint", function(event, d) {
+                    if (activeDragNodeId) return;
                     chainHoverPathIds = pathNodeIdsFromLeaf(d.id, dataset.links);
                     handleHover(this, d, true);
                     if (!window.matchMedia("(hover: hover)").matches) return;
