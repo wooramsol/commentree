@@ -214,8 +214,6 @@
             text-align: center;
             font-family: 'Helvetica Neue', Arial, sans-serif;
             -webkit-font-smoothing: antialiased;
-            -webkit-clip-path: circle(48% at 50% 50%);
-            clip-path: circle(48% at 50% 50%);
             gap: 2px;
         }
         .node-hint-plus {
@@ -478,6 +476,21 @@
                 cp.append("circle").attr("cx", 0).attr("cy", 0);
             }
             cp.select("circle").attr("r", r);
+        }
+        /** Hover hint clipped to the node circle through the outer edge of the black stroke (stroke-width 2). */
+        function ensureNodeHintClip(svgSel, nodeId, r) {
+            const id = "hint-node-clip-" + sanitizeSvgId(nodeId);
+            let defs = svgSel.select("defs");
+            if (defs.empty()) defs = svgSel.insert("defs", ":first-child");
+            let cp = defs.select("#" + id);
+            if (cp.empty()) {
+                cp = defs.append("clipPath").attr("id", id);
+                cp.append("circle").attr("cx", 0).attr("cy", 0);
+            }
+            const strokeW = 2;
+            const clipR = Math.max(r + strokeW / 2, 2);
+            cp.select("circle").attr("r", clipR);
+            return id;
         }
         function appendRootExtIconSvg(parent, iconPx) {
             const k = iconPx / 24;
@@ -793,7 +806,9 @@
             node.select(".node-core .node-hint-pop").each(function(d) {
                 const r = typeof d.radius === "number" && d.radius > 0 ? d.radius : (d.id === "root" ? NODE_BASE_RADIUS_ROOT : NODE_BASE_RADIUS_COMMENT);
                 const side = r * 2.2;
-                d3.select(this).select("foreignObject")
+                const hintG = d3.select(this);
+                hintG.attr("clip-path", `url(#${ensureNodeHintClip(svg, d.id, r)})`);
+                hintG.select("foreignObject")
                     .attr("width", side).attr("height", side)
                     .attr("x", -r * 1.1).attr("y", -r * 1.1);
             });
