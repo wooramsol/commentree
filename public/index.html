@@ -48,10 +48,8 @@
         .dropdown-btn.open #dropdownArrow { transform: rotate(180deg); }
         .handles-list-container { display: flex; flex-direction: column; gap: 4px; max-height: 150px; overflow-y: auto; padding-right: 4px; margin-top: 2px; }
         .hidden { display: none !important; }
-        .handles-list-container a { background: var(--accent-soft); color: #333; text-decoration: none; padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; display: block; word-break: break-all; transition: background 0.2s; position: relative; }
+        .handles-list-container a { background: var(--accent-soft); color: #333; text-decoration: none; padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; display: block; word-break: break-all; transition: background 0.2s; }
         .handles-list-container a:hover { background: var(--accent); color: white; }
-        .delete-tree-btn { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: #ff4444; color: white; border: none; border-radius: 4px; padding: 2px 6px; font-size: 0.7rem; cursor: pointer; opacity: 0; transition: opacity 0.2s; }
-        .handles-list-container a:hover .delete-tree-btn { opacity: 1; }
         .active-item { background-color: var(--accent-tint) !important; color: var(--accent) !important; border-left: 4px solid var(--accent) !important; font-weight: 800 !important; }
         .dragging, .dragging * { cursor: grabbing !important; }
         .node { cursor: cell; pointer-events: all; }
@@ -580,8 +578,7 @@
                 list.innerHTML = cachedHandles.map(h => {
                     const labelRaw = h.toLowerCase() === '@wooramsol' ? h + '👨‍💻' : h;
                     const label = escapeHtml(labelRaw);
-                    const delBtn = isAdmin ? `<button type="button" class="delete-tree-btn" onclick="event.preventDefault(); event.stopPropagation(); openDeleteTreeModal(${JSON.stringify(h)})">DEL</button>` : '';
-                    return `<a href="/${h}" class="${h.toLowerCase() === handle.toLowerCase() ? 'active-item' : ''}">${label}${delBtn}</a>`;
+                    return `<a href="/${h}" class="${h.toLowerCase() === handle.toLowerCase() ? 'active-item' : ''}">${label}</a>`;
                 }).join('');
             }
         };
