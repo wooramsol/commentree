@@ -200,6 +200,38 @@
             .nav-box { width: 100%; }
             .chart-hint { width: 100%; padding: 0 2px; font-size: clamp(0.78rem, 4vw, 1.02rem); }
         }
+        .node-hint-pop-inner {
+            box-sizing: border-box;
+            width: 100%;
+            height: 100%;
+            padding: 8% 10%;
+            background: rgba(255, 255, 255, 0.78);
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -webkit-clip-path: circle(48% at 50% 50%);
+            clip-path: circle(48% at 50% 50%);
+            gap: 2px;
+        }
+        .node-hint-plus {
+            font-weight: 900;
+            color: var(--accent);
+            font-size: clamp(18px, 7vmin, 30px);
+            line-height: 0.9;
+            letter-spacing: -0.04em;
+        }
+        .node-hint-word {
+            font-weight: 800;
+            color: var(--accent);
+            font-size: clamp(9px, 3.2vmin, 13px);
+            line-height: 1.2;
+            letter-spacing: -0.02em;
+        }
     </style>
 </head>
 <body>
@@ -700,16 +732,26 @@
             linkLayer.selectAll("line").data(dataset.links, d => (d.source.id || d.source) + "-" + (d.target.id || d.target)).join("line").attr("stroke", "#000").attr("stroke-width", 2);
             const node = nodeLayer.selectAll(".node").data(dataset.nodes, d => d.id).join(enter => {
                 const nodeG = enter.append("g").attr("class", "node")
-                    .on("mouseover", function(event, d) { handleHover(this, d, true); })
-                    .on("mouseout", function(event, d) { handleHover(this, d, false); })
                     .on("click", (event, d) => { if (event.defaultPrevented) return; event.stopPropagation(); openModal(d); })
                     .on("contextmenu", (event, d) => { event.preventDefault(); if (!isAdmin) return; if (d.id === "root") { openDeleteTreeModal(handle); return; } openDeleteModal(d); })
-                    .call(d3.drag().on("start", function(e, d) { if (!e.active) simulation.alphaTarget(0.2).restart(); d.fx = d.x; d.fy = d.y; d3.select(this).classed("dragging", true); tooltip.style("display", "none"); }).on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; }).on("end", function(e, d) { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; d3.select(this).classed("dragging", false); }));
+                    .call(d3.drag().on("start", function(e, d) { if (!e.active) simulation.alphaTarget(0.2).restart(); d.fx = d.x; d.fy = d.y; d3.select(this).classed("dragging", true); tooltip.style("display", "none"); d3.select(this).select(".node-hint-pop").interrupt().style("opacity", 0); }).on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; }).on("end", function(e, d) { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; d3.select(this).classed("dragging", false); }));
                 const core = nodeG.append("g").attr("class", "node-core");
                 core.append("circle").attr("stroke", "#000").attr("stroke-width", 2);
                 core.append("foreignObject").append("xhtml:div").attr("class", "bubble-text");
+                const hintG = core.append("g").attr("class", "node-hint-pop").style("opacity", 0).style("pointer-events", "none");
+                hintG.append("foreignObject").attr("class", "node-hint-fo").append("xhtml:div").attr("xmlns", "http://www.w3.org/1999/xhtml").attr("class", "node-hint-pop-inner").html('<span class="node-hint-plus">+</span><span class="node-hint-word">comment</span>');
                 return nodeG;
             });
+            node
+                .on("mouseenter.nodehint", function(event, d) {
+                    handleHover(this, d, true);
+                    if (!window.matchMedia("(hover: hover)").matches) return;
+                    d3.select(this).select(".node-hint-pop").interrupt().transition().duration(100).style("opacity", 1);
+                })
+                .on("mouseleave.nodehint", function(event, d) {
+                    handleHover(this, d, false);
+                    d3.select(this).select(".node-hint-pop").interrupt().transition().duration(120).style("opacity", 0);
+                });
             node.each(function() {
                 const g = d3.select(this);
                 if (g.select(".node-core").empty()) {
@@ -720,6 +762,16 @@
                         core.node().appendChild(c.node());
                         core.node().appendChild(fo.node());
                     }
+                }
+            });
+            node.each(function() {
+                const g = d3.select(this);
+                g.select(":scope > .node-hint-pop").remove();
+                const core = g.select(".node-core");
+                if (core.empty()) return;
+                if (core.select(".node-hint-pop").empty()) {
+                    const hintG = core.append("g").attr("class", "node-hint-pop").style("opacity", 0).style("pointer-events", "none");
+                    hintG.append("foreignObject").attr("class", "node-hint-fo").append("xhtml:div").attr("xmlns", "http://www.w3.org/1999/xhtml").attr("class", "node-hint-pop-inner").html('<span class="node-hint-plus">+</span><span class="node-hint-word">comment</span>');
                 }
             });
             node.each(function(d) {
@@ -738,6 +790,13 @@
                 }
             });
             node.select(".node-core circle").attr("r", d => d.radius).attr("fill", d => d.color);
+            node.select(".node-core .node-hint-pop").each(function(d) {
+                const r = typeof d.radius === "number" && d.radius > 0 ? d.radius : (d.id === "root" ? NODE_BASE_RADIUS_ROOT : NODE_BASE_RADIUS_COMMENT);
+                const side = r * 2.2;
+                d3.select(this).select("foreignObject")
+                    .attr("width", side).attr("height", side)
+                    .attr("x", -r * 1.1).attr("y", -r * 1.1);
+            });
             const foBacked = node.filter(() => !useIosSvgLabels);
             foBacked.select(".node-core foreignObject")
                 .attr("width", d => d.radius * 2.2)
@@ -766,6 +825,8 @@
                 const fontPx = nodeCommentFontPx(d.radius, d.label);
                 return `<div class="node-label-inner" style="padding:12%; width:100%; height:100%; box-sizing:border-box; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:${fontPx}px; pointer-events:none;">${escapeHtml(d.label)}</div>`;
             });
+
+            node.select(".node-core .node-hint-pop").raise();
 
             node.selectAll("g.root-ig-icons").remove();
 
@@ -822,6 +883,7 @@
 
         let selNode;
         window.openModal = (n) => {
+            nodeLayer.selectAll(".node-hint-pop").interrupt().style("opacity", 0);
             selNode = n;
             document.getElementById('replyTargetLabel').innerText = `"${n.label}"`;
             document.getElementById('inputModal').style.display = 'flex';
